@@ -1,0 +1,2559 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CyberTetro: Rogue Protocol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #b500ff;
+            --neon-gold: #ffd700;
+            --bg-dark: #07070c;
+        }
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(181, 0, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.08) 0%, transparent 50%),
+                linear-gradient(0deg, rgba(10,10,18,0.9) 0%, rgba(7,7,12,1) 100%);
+            font-family: 'Rajdhani', sans-serif;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .cyber-panel {
+            background: rgba(15, 17, 26, 0.85);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8), inset 0 0 12px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(8px);
+        }
+        .cyber-panel-pink {
+            background: rgba(20, 12, 24, 0.85);
+            border: 1px solid rgba(255, 0, 127, 0.35);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.15), inset 0 0 15px rgba(255, 0, 127, 0.08);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.7);
+        }
+        .neon-text-pink {
+            text-shadow: 0 0 8px rgba(255, 0, 127, 0.7);
+        }
+        .neon-text-gold {
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+        }
+        .skill-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .skill-btn:not(:disabled):hover {
+            transform: translateY(-2px);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.35);
+        }
+        .skill-btn:not(:disabled):active {
+            transform: translateY(1px);
+        }
+        .skill-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            filter: grayscale(70%);
+        }
+        .card-choice {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .card-choice:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 10px 25px -5px rgba(0, 243, 255, 0.4);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0a0b10; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(255, 0, 127, 0.4); }
+            50% { border-color: rgba(255, 0, 127, 1); }
+        }
+        .boss-active-border {
+            animation: pulse-border 1.5s infinite;
+        }
+        .shake {
+            animation: shakeAnim 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shakeAnim {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-4 select-none">
+
+    <!-- TOP BAR: Stage / Boss Status & Stats -->
+    <header class="max-w-6xl w-full mx-auto mb-2">
+        <div class="cyber-panel rounded-xl p-3 flex flex-col md:flex-row items-center justify-between gap-3" id="topStatusPanel">
+            <!-- Title & Floor -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-400 flex items-center justify-center text-cyan-400 font-orbitron font-bold text-lg shadow-[0_0_10px_rgba(0,243,255,0.3)]" id="stageBadge">
+                        1
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="font-orbitron font-extrabold text-base md:text-lg tracking-wider text-white uppercase" id="stageTitle">SEKTOR 1: INICJACJA</h1>
+                            <span id="bossTag" class="hidden px-2 py-0.5 text-[10px] font-orbitron font-bold bg-pink-600 text-white rounded animate-pulse">BOSS</span>
+                        </div>
+                        <p class="text-xs text-slate-400" id="stageSubtitle">Oczyść linie i zdobądź cel punktowy</p>
+                    </div>
+                </div>
+                <button id="soundToggleBtn" class="md:hidden p-2 rounded-lg bg-slate-800/80 text-cyan-400 border border-slate-700">
+                    <i class="fa-solid fa-volume-high" id="soundIconMobile"></i>
+                </button>
+            </div>
+
+            <!-- Progress / Boss HP Bar -->
+            <div class="w-full md:flex-1 max-w-md mx-auto">
+                <div class="flex justify-between text-xs font-bold mb-1">
+                    <span id="progressLabel" class="text-cyan-400 uppercase tracking-wider font-orbitron">POSTĘP ETAPU</span>
+                    <span id="progressNumbers" class="font-orbitron text-white">0 / 1000 PKT</span>
+                </div>
+                <div class="w-full h-3.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/80 p-0.5 relative">
+                    <div id="stageProgressBar" class="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <!-- Boss Attack Timer Bar -->
+                <div id="bossTimerContainer" class="hidden mt-1.5">
+                    <div class="flex justify-between text-[10px] text-pink-400 font-bold mb-0.5">
+                        <span id="bossAbilityName"><i class="fa-solid fa-skull-crossbones mr-1"></i>ATAK BOSSA ZA:</span>
+                        <span id="bossTimerText">8.5s</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                        <div id="bossAttackBar" class="h-full bg-pink-500 transition-all duration-100" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Currency & Quick Actions -->
+            <div class="flex items-center gap-4 w-full md:w-auto justify-around md:justify-end border-t md:border-t-0 border-slate-800 pt-2 md:pt-0">
+                <div class="text-center">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">WYNIK</div>
+                    <div id="scoreDisplay" class="font-orbitron font-bold text-base md:text-lg text-white">0</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-amber-400 uppercase font-bold tracking-wider">ZŁOTO</div>
+                    <div class="font-orbitron font-bold text-base md:text-lg text-amber-400 flex items-center gap-1 justify-center">
+                        <i class="fa-solid fa-coins text-xs"></i> <span id="goldDisplay">0</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">LINIE</div>
+                    <div id="linesDisplay" class="font-orbitron font-bold text-base md:text-lg text-cyan-300">0</div>
+                </div>
+                <button id="pauseBtnDesktop" onclick="game.togglePause()" title="Pauza (P)" class="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-400 border border-slate-700 transition">
+                    <i class="fa-solid fa-pause" id="pauseIcon"></i>
+                </button>
+                <button id="soundToggleBtnDesktop" title="Dźwięk Wł/Wył" class="hidden md:flex w-9 h-9 items-center justify-center rounded-lg bg-slate-800/90 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition">
+                    <i class="fa-solid fa-volume-high" id="soundIconDesktop"></i>
+                </button>
+                <button id="helpBtn" title="Instrukcja i Klocki" class="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/90 hover:bg-slate-700 text-purple-400 border border-slate-700 transition">
+                    <i class="fa-solid fa-circle-question"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN GAME AREA -->
+    <main class="max-w-6xl w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start my-auto">
+
+        <!-- LEFT COLUMN: Hold, Mana & Active Skills -->
+        <div class="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1">
+            <!-- Hold & Next Row on Mobile, Hold Only on Desktop -->
+            <div class="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                <!-- HOLD BOX -->
+                <div class="cyber-panel rounded-xl p-3 flex flex-col items-center">
+                    <div class="w-full flex justify-between items-center mb-1">
+                        <span class="text-xs font-orbitron font-bold text-cyan-400 tracking-wider">SCHOWEK (HOLD)</span>
+                        <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 border border-slate-700">C / SHIFT</span>
+                    </div>
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-2 flex items-center justify-center w-28 h-20 relative">
+                        <canvas id="holdCanvas" width="100" height="72"></canvas>
+                        <div id="holdLockBadge" class="hidden absolute inset-0 bg-slate-950/85 flex items-center justify-center text-xs text-pink-500 font-bold">
+                            <i class="fa-solid fa-lock mr-1"></i> ZABLOKOWANE
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEXT BOX (Visible only on mobile/tablet in this grid) -->
+                <div class="cyber-panel rounded-xl p-3 flex lg:hidden flex-col items-center">
+                    <div class="w-full flex justify-between items-center mb-1">
+                        <span class="text-xs font-orbitron font-bold text-purple-400 tracking-wider">NASTĘPNY</span>
+                        <span id="nextBlockSpecialTagMobile" class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700">STD</span>
+                    </div>
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-2 flex items-center justify-center w-28 h-20">
+                        <canvas id="nextCanvasMobile" width="100" height="72"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MANA & SKILLS PANEL -->
+            <div class="cyber-panel rounded-xl p-3 flex flex-col gap-2.5">
+                <div>
+                    <div class="flex justify-between items-center text-xs font-bold mb-1">
+                        <span class="font-orbitron text-blue-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-bolt text-cyan-400"></i> ENERGIA (MANA)
+                        </span>
+                        <span id="manaText" class="font-orbitron text-white">20 / 100</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-blue-900/60 p-0.5">
+                        <div id="manaBar" class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(0,243,255,0.6)]" style="width: 20%"></div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Czyść linie i serie (Combo), aby ładować energię.</p>
+                </div>
+
+                <div class="flex justify-between items-center border-b border-slate-800 pb-1">
+                    <span class="text-xs font-orbitron font-bold text-slate-300 uppercase tracking-wider">
+                        SLOTY UMIEJĘTNOŚCI (1-4)
+                    </span>
+                    <span id="skillSlotsCountBadge" class="text-[10px] font-orbitron bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded">0 / 4</span>
+                </div>
+
+                <!-- Dynamic 4 Skill Slots Container -->
+                <div id="skillsContainer" class="flex flex-col gap-2">
+                    <!-- Injected by renderSkillSlots() -->
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER COLUMN: Tetris Board Canvas -->
+        <div class="lg:col-span-6 flex flex-col items-center justify-center order-1 lg:order-2">
+            <div id="boardWrapper" class="relative p-2 rounded-2xl cyber-panel flex flex-col items-center shadow-[0_0_35px_rgba(0,0,0,0.9)]">
+
+                <!-- Active Status Debuffs / Buffs Overlay Pill -->
+                <div id="statusBadgesContainer" class="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-1.5 pointer-events-none justify-center">
+                    <!-- Dynamic badges injected here -->
+                </div>
+
+                <!-- Main Game Canvas (10x20 grid -> 300x600 px) -->
+                <canvas id="gameCanvas" width="300" height="600" class="bg-slate-950 rounded-xl border border-slate-800 shadow-inner block max-h-[68vh] w-auto aspect-[1/2]"></canvas>
+
+                <!-- Fog of War Boss Overlay -->
+                <div id="fogOverlay" class="hidden absolute inset-x-2 top-2 h-[58%] bg-gradient-to-b from-slate-950 via-slate-900/95 to-transparent rounded-t-xl pointer-events-none flex items-center justify-center border-b border-pink-500/20 transition-opacity duration-300">
+                    <div class="text-pink-400/80 font-orbitron text-xs md:text-sm tracking-widest uppercase flex items-center gap-2 animate-pulse bg-slate-950/85 px-3 py-1.5 rounded-full border border-pink-500/40">
+                        <i class="fa-solid fa-eye-slash"></i> MROK BOSSA AKTYWNY
+                    </div>
+                </div>
+
+                <!-- Pause Overlay -->
+                <div id="pauseOverlay" class="hidden absolute inset-2 bg-slate-950/85 backdrop-blur-sm rounded-xl z-20 flex flex-col items-center justify-center p-4 text-center">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-400 flex items-center justify-center text-amber-400 text-xl mb-3">
+                        <i class="fa-solid fa-pause"></i>
+                    </div>
+                    <h3 class="font-orbitron font-black text-xl text-white tracking-wider mb-1">PAUZA SYSTEMU</h3>
+                    <p class="text-xs text-slate-400 mb-4">Naciśnij <strong class="text-amber-400">P</strong> lub przycisk poniżej, aby wrócić do gry</p>
+                    <button onclick="game.togglePause()" class="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-orbitron font-bold text-xs uppercase transition">
+                        WZNÓW GRĘ
+                    </button>
+                </div>
+
+                <!-- Floating Combat Text Container -->
+                <div id="floatingTextContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+            </div>
+
+            <!-- Mobile / Touch Controls Bar -->
+            <div class="grid grid-cols-6 gap-1.5 w-full max-w-[340px] mt-2 lg:hidden">
+                <button onclick="game.moveLeft()" class="cyber-panel py-3 rounded-lg active:bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <button onclick="game.moveRight()" class="cyber-panel py-3 rounded-lg active:bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-arrow-right text-lg"></i>
+                </button>
+                <button onclick="game.rotatePiece()" class="cyber-panel py-3 rounded-lg active:bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-rotate-right text-lg"></i>
+                </button>
+                <button onclick="game.softDrop()" class="cyber-panel py-3 rounded-lg active:bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-arrow-down text-lg"></i>
+                </button>
+                <button onclick="game.hardDrop()" class="cyber-panel py-3 rounded-lg active:bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-angles-down text-lg"></i>
+                </button>
+                <button onclick="game.holdPiece()" class="cyber-panel py-3 rounded-lg active:bg-pink-500/20 text-pink-400 font-bold flex items-center justify-center text-xs font-orbitron">
+                    HOLD
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Next Piece, Special Block Legend & Relics Inventory -->
+        <div class="lg:col-span-3 flex flex-col gap-3 order-3">
+            <!-- NEXT PIECE (Desktop) -->
+            <div class="cyber-panel rounded-xl p-3 hidden lg:flex flex-col items-center">
+                <div class="w-full flex justify-between items-center mb-1.5">
+                    <span class="text-xs font-orbitron font-bold text-purple-400 tracking-wider">NASTĘPNY KLOCEK</span>
+                    <span id="nextBlockSpecialTag" class="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700 font-bold">STANDARD</span>
+                </div>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-2 flex items-center justify-center w-full h-24">
+                    <canvas id="nextCanvas" width="120" height="84"></canvas>
+                </div>
+            </div>
+
+            <!-- RELICS / PERKS INVENTORY -->
+            <div class="cyber-panel rounded-xl p-3 flex flex-col flex-1 min-h-[200px]">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-1.5 mb-2">
+                    <span class="text-xs font-orbitron font-bold text-amber-400 tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-gem"></i> AKTYWNE RELIKTY PASYWNE
+                    </span>
+                    <span id="relicCountBadge" class="text-xs font-orbitron bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">0</span>
+                </div>
+
+                <div id="relicsList" class="flex flex-col gap-2 max-h-[240px] overflow-y-auto pr-1">
+                    <div class="text-xs text-slate-500 italic text-center py-6">
+                        Ukończ pierwszy sektor, aby odblokować umiejętności i cyber-relikty.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPECIAL BLOCKS MINI LEGEND -->
+            <div class="cyber-panel rounded-xl p-3">
+                <div class="text-xs font-orbitron font-bold text-cyan-400 tracking-wider border-b border-slate-800 pb-1 mb-2">
+                    MODYFIKATORY I ZAGROŻENIA
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="flex items-center gap-2 bg-slate-900/70 p-1.5 rounded border border-slate-800">
+                        <span class="w-5 h-5 rounded bg-red-500/20 border border-red-500 flex items-center justify-center text-red-400 font-bold text-[11px]">💣</span>
+                        <div>
+                            <div class="font-bold text-red-300 leading-none">Bomba</div>
+                            <div class="text-[10px] text-slate-400">Wybuch 3x3 po ułożeniu</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900/70 p-1.5 rounded border border-slate-800">
+                        <span class="w-5 h-5 rounded bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-300 font-bold text-[11px]">★</span>
+                        <div>
+                            <div class="font-bold text-amber-300 leading-none">Złoty</div>
+                            <div class="text-[10px] text-slate-400">+80% PKT + Złoto</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900/70 p-1.5 rounded border border-slate-800">
+                        <span class="w-5 h-5 rounded bg-blue-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300 font-bold text-[11px]">⚡</span>
+                        <div>
+                            <div class="font-bold text-cyan-300 leading-none">Plazma</div>
+                            <div class="text-[10px] text-slate-400">+18 Many przy linii</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900/70 p-1.5 rounded border border-slate-800">
+                        <span class="w-5 h-5 rounded bg-sky-500/20 border border-sky-300 flex items-center justify-center text-sky-200 font-bold text-[11px]">❄️</span>
+                        <div>
+                            <div class="font-bold text-sky-300 leading-none">Lód Bossa</div>
+                            <div class="text-[10px] text-slate-400">Wymaga 2 czyszczeń</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER: Controls Legend -->
+    <footer class="max-w-6xl w-full mx-auto mt-2 hidden md:block">
+        <div class="cyber-panel rounded-xl px-4 py-2 flex flex-wrap items-center justify-between text-xs text-slate-400">
+            <div class="flex items-center gap-4">
+                <span><strong class="text-cyan-400 font-orbitron">STRZAŁKI / WASD:</strong> Ruch i Obrót</span>
+                <span><strong class="text-cyan-400 font-orbitron">SPACJA:</strong> Natychmiastowy Zrzut (Hard Drop)</span>
+                <span><strong class="text-cyan-400 font-orbitron">C / SHIFT:</strong> Schowek (Hold)</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span><strong class="text-purple-400 font-orbitron">KLAWISZE 1 - 4:</strong> Odblokowane umiejętności</span>
+                <span><strong class="text-amber-400 font-orbitron">P / ESC:</strong> Pauza</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- DRAFT / ROGUELIKE PERK SELECTION MODAL -->
+    <div id="draftModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-4xl w-full cyber-panel rounded-2xl p-6 border-2 border-cyan-500/50 shadow-[0_0_50px_rgba(0,243,255,0.2)] max-h-[95vh] overflow-y-auto">
+            <div class="text-center mb-5">
+                <div class="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400 text-cyan-300 font-orbitron text-xs font-bold mb-2">
+                    SEKTOR UKOŃCZONY!
+                </div>
+                <h2 class="font-orbitron font-black text-2xl md:text-3xl text-white tracking-wider uppercase neon-text-cyan">
+                    WYBIERZ ULEPSZENIE PROTOKOŁU
+                </h2>
+                <p class="text-slate-400 text-sm mt-1">Odblokuj nową umiejętność aktywną (sloty 1-4), ulepsz obecną lub zainstaluj pasywny relikt.</p>
+            </div>
+
+            <!-- 3 Cards Container -->
+            <div id="draftCardsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Dynamic Cards Injected Here -->
+            </div>
+
+            <!-- Reroll & Gold Shop Action -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 pt-4">
+                <div class="flex items-center gap-2 text-amber-400 font-orbitron font-bold">
+                    <i class="fa-solid fa-coins"></i> Twoja Kasa: <span id="draftGoldDisplay">0</span> Złota
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button id="rerollBtn" onclick="game.rerollDraft()" class="skill-btn px-3.5 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400 text-amber-300 font-orbitron text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-dice"></i> Przelosuj (<span id="rerollCostText">20</span> Zł)
+                    </button>
+                    <button id="buyManaBtn" onclick="game.buyFullMana()" class="skill-btn px-3.5 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400 text-blue-300 font-orbitron text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-bolt"></i> Pełna Mana (<span id="buyManaCostText">25</span> Zł)
+                    </button>
+                    <button id="buyCleanBtn" onclick="game.buyRowClean()" class="skill-btn px-3.5 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400 text-emerald-300 font-orbitron text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-broom"></i> Oczyść 2 wiersze (<span id="buyCleanCostText">35</span> Zł)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- START / GAME OVER MODAL -->
+    <div id="startModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-lg w-full cyber-panel rounded-2xl p-6 md:p-8 text-center border-2 border-cyan-400/50 relative overflow-hidden">
+            <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400 flex items-center justify-center mx-auto mb-4 text-cyan-400 text-3xl shadow-[0_0_25px_rgba(0,243,255,0.4)]">
+                <i class="fa-solid fa-cubes-stacked"></i>
+            </div>
+            <h1 id="modalMainTitle" class="font-orbitron font-black text-2xl md:text-4xl text-white tracking-wider uppercase neon-text-cyan mb-2">
+                CYBERTETRO
+            </h1>
+            <div id="modalSubBadge" class="inline-block px-3 py-0.5 rounded bg-purple-600/30 border border-purple-400 text-purple-300 font-orbitron text-xs font-bold mb-4">
+                ROGUE PROTOCOL: HARDCORE EDITION
+            </div>
+
+            <p id="modalDescription" class="text-slate-300 text-sm md:text-base mb-6 leading-relaxed">
+                Zaczynasz bez umiejętności aktywnych! Przetrwaj kolejne sektory, odblokuj do <strong>4 umiejętności z puli 8 modułów bojowych</strong>, zbieraj <strong>16 pasywnych reliktów</strong> i pokonaj <strong>7 unikalnych Bossów</strong>!
+            </p>
+
+            <!-- Game Over Stats Summary (Hidden on first start) -->
+            <div id="gameOverStats" class="hidden grid grid-cols-3 gap-2 bg-slate-900/90 p-3 rounded-xl border border-slate-800 mb-6">
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase">SEKTOR</div>
+                    <div id="finalStageStat" class="font-orbitron font-bold text-lg text-cyan-400">1</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase">WYNIK</div>
+                    <div id="finalScoreStat" class="font-orbitron font-bold text-lg text-white">0</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase">LINIE</div>
+                    <div id="finalLinesStat" class="font-orbitron font-bold text-lg text-purple-400">0</div>
+                </div>
+            </div>
+
+            <button onclick="game.startNewRun()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-orbitron font-black text-base tracking-wider uppercase shadow-[0_0_25px_rgba(0,243,255,0.5)] transition transform hover:scale-[1.02]">
+                <i class="fa-solid fa-play mr-2"></i> ROZPOCZNIJ RUN
+            </button>
+        </div>
+    </div>
+
+    <!-- HELP / INFO MODAL -->
+    <div id="helpModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full cyber-panel rounded-2xl p-6 border border-purple-500/50 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+                <h3 class="font-orbitron font-bold text-lg text-purple-400 flex items-center gap-2">
+                    <i class="fa-solid fa-book-journal-whills"></i> KOMPENDIUM ROGUE TETRIS
+                </h3>
+                <button onclick="document.getElementById('helpModal').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="space-y-4 text-sm text-slate-300">
+                <div>
+                    <h4 class="font-orbitron font-bold text-cyan-400 text-xs uppercase mb-1">1. Odblokowywanie Umiejętności (Sloty 1-4)</h4>
+                    <p>Rozpoczynasz grę z <strong>4 pustymi slotami umiejętności</strong>. Po ukończeniu każdego sektora możesz wybrać w drafcie nową umiejętność aktywną (spośród 8 dostępnych, np. <em>Laser Dna, Fala EMP, Wiertło Pionowe, Kuźnia Midasowa, Synteza I-Beam</em>) lub ulepszyć już posiadaną do Poziomu 3!</p>
+                </div>
+                <div>
+                    <h4 class="font-orbitron font-bold text-pink-400 text-xs uppercase mb-1">2. Siedmiu Bossów Cyberprzestrzeni (Co 3 Sektory)</h4>
+                    <ul class="list-disc list-inside text-xs text-slate-400 mt-1 space-y-1">
+                        <li><strong class="text-pink-400">Architekt Złomu:</strong> Wypycha od dołu niekompletne rzędy pancernego złomu.</li>
+                        <li><strong class="text-pink-400">Władca Mroku:</strong> Spowija górne 58% planszy gęstą mgłą i przyspiesza grawitację.</li>
+                        <li><strong class="text-pink-400">Koder Chaosu:</strong> Obraca klocek, blokuje Hold i na chwilę odwraca kierunki Lewo/Prawo!</li>
+                        <li><strong class="text-sky-400">Kriomanta Zero:</strong> Zamraża bloki na planszy w <strong>Bryły Lodu (❄️)</strong>, które po wyczyszczeniu linii odradzają się raz jako zwykły blok!</li>
+                        <li><strong class="text-emerald-400">Wirus Przeciążenia:</strong> Wysysa Manę, wydłuża odnowienia i zrzuca z góry pojedyncze bloki-wirusy.</li>
+                        <li><strong class="text-amber-400">Tytan Grawitacji:</strong> Wywołuje uderzenia hiper-grawitacji i wymusza trudne klocki 5-polowe.</li>
+                        <li><strong class="text-purple-400">Inkwizytor Cenzury:</strong> Blokuje obracanie klocków na 4s i buduje boczne filary.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-orbitron font-bold text-amber-400 text-xs uppercase mb-1">3. Specjalne Bloki i Relikty</h4>
+                    <ul class="list-disc list-inside text-xs text-slate-400 mt-1 space-y-1">
+                        <li><strong>💣 Blok Bomba:</strong> Po ułożeniu klocka (i wyczyszczeniu pełnych linii) wybucha w promieniu 3x3.</li>
+                        <li><strong>★ Złoty Blok:</strong> Wyczyszczenie linii zawierającej ten blok zwiększa jej punkty o +80% oraz daje +8 Złota.</li>
+                        <li><strong>⚡ Blok Plazmy:</strong> Wyczyszczenie go w linii regeneruje +18 Energii (Many).</li>
+                        <li><strong>❄️ Bryła Lodu:</strong> Zamrożony przez Bossa segment — przy pierwszym wyczyszczeniu pęka i zostawia zwykły blok.</li>
+                    </ul>
+                </div>
+            </div>
+            <button onclick="document.getElementById('helpModal').classList.add('hidden')" class="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-orbitron text-xs font-bold">
+                ZAMKNIJ OKNO
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SYSTEM DŹWIĘKOWY (Web Audio API Synthesizer)
+         */
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            toggle() {
+                this.enabled = !this.enabled;
+                const iconClass = this.enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-500';
+                document.getElementById('soundIconDesktop').className = iconClass;
+                document.getElementById('soundIconMobile').className = iconClass;
+            }
+            playTone(freq, type = 'sine', duration = 0.1, vol = 0.12, slideFreq = null) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slideFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
+                }
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            move() { this.playTone(220, 'triangle', 0.04, 0.06); }
+            rotate() { this.playTone(360, 'sine', 0.07, 0.09, 520); }
+            drop() { this.playTone(140, 'square', 0.1, 0.12, 55); }
+            clearLine(count) {
+                const base = 330;
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => this.playTone(base + i * 140, 'triangle', 0.18, 0.15, (base + i * 140) * 1.25), i * 65);
+                }
+            }
+            explosion() {
+                this.playTone(110, 'sawtooth', 0.28, 0.2, 30);
+            }
+            skill() {
+                this.playTone(440, 'sine', 0.25, 0.15, 880);
+            }
+            stageClear() {
+                [440, 554, 659, 880].forEach((f, idx) => {
+                    setTimeout(() => this.playTone(f, 'triangle', 0.22, 0.15), idx * 90);
+                });
+            }
+            bossAttack() {
+                this.playTone(180, 'sawtooth', 0.35, 0.18, 70);
+            }
+        }
+
+        const sfx = new SoundSystem();
+
+        /**
+         * DEFINICJE KLOCKÓW (Klasyczne + Roguelike)
+         */
+        const SHAPES = {
+            // Klasyczne 7 Tetromino
+            I: { matrix: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], color: '#00f3ff', name: 'I-Beam' },
+            J: { matrix: [[1,0,0],[1,1,1],[0,0,0]], color: '#3b82f6', name: 'J-Block' },
+            L: { matrix: [[0,0,1],[1,1,1],[0,0,0]], color: '#f97316', name: 'L-Block' },
+            O: { matrix: [[1,1],[1,1]], color: '#eab308', name: 'O-Cube' },
+            S: { matrix: [[0,1,1],[1,1,0],[0,0,0]], color: '#22c55e', name: 'S-Tetro' },
+            T: { matrix: [[0,1,0],[1,1,1],[0,0,0]], color: '#a855f7', name: 'T-Spin' },
+            Z: { matrix: [[1,1,0],[0,1,1],[0,0,0]], color: '#ef4444', name: 'Z-Tetro' },
+
+            // Nowe bloki Roguelike
+            DOT:    { matrix: [[1]], color: '#10b981', name: 'Kropka 1x1', rogue: true },
+            DOMINO: { matrix: [[1,1],[0,0]], color: '#38bdf8', name: 'Domino 2x1', rogue: true },
+            CORNER: { matrix: [[1,1],[1,0]], color: '#ec4899', name: 'Narożnik', rogue: true },
+            PLUS:   { matrix: [[0,1,0],[1,1,1],[0,1,0]], color: '#f43f5e', name: 'Krzyż +', rogue: true },
+            U_BLK:  { matrix: [[1,0,1],[1,1,1],[0,0,0]], color: '#c084fc', name: 'U-Moduł', rogue: true }
+        };
+
+        /**
+         * KATALOG 8 UMIEJĘTNOŚCI AKTYWNYCH (Gracz zaczyna z 0 i odblokowuje do 4 w slotach 1-4)
+         */
+        const SKILL_CATALOG = {
+            laser: {
+                id: 'laser',
+                name: 'Laser Dna',
+                icon: 'fa-burst',
+                color: 'text-red-400',
+                bgBox: 'bg-red-500/10 border-red-500/40',
+                baseCost: 40,
+                baseCd: 9000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Niszczy ${lvl} najniższy(e) wiersz(e) planszy`,
+                execute: (g, lvl) => {
+                    const rowsToClear = lvl;
+                    for (let i = 0; i < rowsToClear; i++) {
+                        const y = g.rows - 1;
+                        for (let x = 0; x < g.cols; x++) {
+                            g.spawnParticles(x * 30 + 15, y * 30 + 15, '#ef4444', 5);
+                        }
+                        g.grid.pop();
+                        g.grid.unshift(Array(g.cols).fill(null));
+                    }
+                    g.triggerBoardShake();
+                    const pts = Math.floor(rowsToClear * 90 * g.mods.scoreMultiplier);
+                    g.addScoreAndProgress(pts);
+                    g.showFloatingText(`⚡ LASER DNA (-${rowsToClear} LINIE)`, '#ef4444');
+                }
+            },
+            chrono: {
+                id: 'chrono',
+                name: 'Spowolnienie',
+                icon: 'fa-hourglass-half',
+                color: 'text-cyan-400',
+                bgBox: 'bg-cyan-500/10 border-cyan-500/40',
+                baseCost: 30,
+                baseCd: 14000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Zwalnia czas i Bossa na ${5 + lvl * 2}s oraz czyści Mrok`,
+                execute: (g, lvl) => {
+                    const dur = (5 + lvl * 2) * 1000;
+                    g.slowTimer = dur;
+                    if (g.fogTimer > 0) {
+                        g.fogTimer = 0;
+                        document.getElementById('fogOverlay').classList.add('hidden');
+                    }
+                    g.showFloatingText(`⏳ SPOWOLNIENIE (${5 + lvl * 2}s)`, '#00f3ff');
+                    g.updateStatusBadges();
+                }
+            },
+            morph_bomb: {
+                id: 'morph_bomb',
+                name: 'Morf: Bomba 1x1',
+                icon: 'fa-bomb',
+                color: 'text-amber-400',
+                bgBox: 'bg-amber-500/10 border-amber-500/40',
+                baseCost: 35,
+                baseCd: 10000,
+                maxLevel: 3,
+                getDesc: (lvl) => lvl === 1 ? 'Zmienia klocek w Kropkę-Bombę 1x1' : `Zmienia w Kropkę-Bombę i daje +${(lvl - 1) * 8} Złota`,
+                execute: (g, lvl) => {
+                    if (!g.currentPiece) return;
+                    g.currentPiece.matrix = [[1]];
+                    g.currentPiece.cellMods = [['BOMB']];
+                    g.currentPiece.color = '#ef4444';
+                    g.currentPiece.name = 'Bomba 1x1';
+                    g.currentPiece.x = Math.min(g.cols - 1, Math.max(0, g.currentPiece.x));
+                    if (lvl > 1) g.gold += (lvl - 1) * 8;
+                    g.showFloatingText('💣 MORF: KROPKA-BOMBA!', '#fbbf24');
+                }
+            },
+            compress: {
+                id: 'compress',
+                name: 'Kompresja',
+                icon: 'fa-arrow-down-wide-short',
+                color: 'text-purple-400',
+                bgBox: 'bg-purple-500/10 border-purple-500/40',
+                baseCost: 55,
+                baseCd: 16000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Zasypuje po 1 dziurze w maks. ${lvl * 3 + 1} kolumnach`,
+                execute: (g, lvl) => {
+                    const maxCols = lvl * 3 + 1; // Poz 1: 4, Poz 2: 7, Poz 3: 10 kolumn
+                    let holesCompressed = 0;
+                    const colsOrder = Array.from({ length: g.cols }, (_, i) => i).sort(() => 0.5 - Math.random());
+
+                    for (let x of colsOrder) {
+                        if (holesCompressed >= maxCols) break;
+                        let foundBlock = false;
+                        let targetHoleY = -1;
+                        for (let y = 0; y < g.rows; y++) {
+                            if (g.grid[y][x] !== null) {
+                                foundBlock = true;
+                            } else if (foundBlock) {
+                                targetHoleY = y;
+                            }
+                        }
+                        if (targetHoleY !== -1) {
+                            for (let y = targetHoleY; y > 0; y--) {
+                                g.grid[y][x] = g.grid[y - 1][x];
+                            }
+                            g.grid[0][x] = null;
+                            holesCompressed++;
+                        }
+                    }
+                    g.triggerBoardShake();
+                    g.showFloatingText(`⏬ KOMPRESJA (-${holesCompressed} DZIUR)!`, '#c084fc');
+                    g.checkLines(0.35, false);
+                }
+            },
+            emp: {
+                id: 'emp',
+                name: 'Impuls EMP',
+                icon: 'fa-shield-halved',
+                color: 'text-emerald-400',
+                bgBox: 'bg-emerald-500/10 border-emerald-500/40',
+                baseCost: 42,
+                baseCd: 14000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Usuwa Lód/Debuffy, cofa atak Bossa i niszczy do ${lvl * 4} śmieci`,
+                execute: (g, lvl) => {
+                    // Czyszczenie negatywnych stanów Bossa
+                    g.fogTimer = 0;
+                    g.holdLockTimer = 0;
+                    g.reverseControlsTimer = 0;
+                    g.rotationLockTimer = 0;
+                    document.getElementById('fogOverlay').classList.add('hidden');
+                    document.getElementById('holdLockBadge').classList.add('hidden');
+
+                    if (g.isBossStage) {
+                        g.bossAttackTimer = Math.min(g.bossAttackInterval, g.bossAttackTimer + g.bossAttackInterval * (0.35 + lvl * 0.15));
+                    }
+
+                    // Rozmrażanie Lodu i niszczenie szarych bloków śmieciowych
+                    let junkRemoved = 0;
+                    const maxJunk = lvl * 4;
+                    for (let y = g.rows - 1; y >= 0; y--) {
+                        for (let x = 0; x < g.cols; x++) {
+                            const c = g.grid[y][x];
+                            if (!c) continue;
+                            if (c.mod === 'ICE') {
+                                c.mod = 'NORMAL';
+                                g.spawnParticles(x * 30 + 15, y * 30 + 15, '#38bdf8', 5);
+                            } else if (c.isJunk && junkRemoved < maxJunk) {
+                                g.spawnParticles(x * 30 + 15, y * 30 + 15, '#10b981', 6);
+                                g.grid[y][x] = null;
+                                junkRemoved++;
+                            }
+                        }
+                    }
+                    g.triggerBoardShake();
+                    g.updateStatusBadges();
+                    g.showFloatingText(`🛡️ IMPULS EMP (-${junkRemoved} ZŁOMU)`, '#10b981');
+                }
+            },
+            midas: {
+                id: 'midas',
+                name: 'Kuźnia Midasowa',
+                icon: 'fa-coins',
+                color: 'text-yellow-400',
+                bgBox: 'bg-yellow-500/10 border-yellow-500/40',
+                baseCost: 38,
+                baseCd: 13000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Ozłaca obecny klocek oraz ${lvl * 2} losowe bloki na planszy (★)`,
+                execute: (g, lvl) => {
+                    if (g.currentPiece) {
+                        const m = g.currentPiece.matrix;
+                        for (let y = 0; y < m.length; y++) {
+                            for (let x = 0; x < m[y].length; x++) {
+                                if (m[y][x]) g.currentPiece.cellMods[y][x] = 'GOLD';
+                            }
+                        }
+                        g.currentPiece.color = '#eab308';
+                    }
+                    // Ozłoć losowe normalne bloki na planszy
+                    const candidates = [];
+                    for (let y = 0; y < g.rows; y++) {
+                        for (let x = 0; x < g.cols; x++) {
+                            if (g.grid[y][x] && g.grid[y][x].mod === 'NORMAL') {
+                                candidates.push({ x, y });
+                            }
+                        }
+                    }
+                    candidates.sort(() => 0.5 - Math.random());
+                    const count = Math.min(candidates.length, lvl * 2);
+                    for (let i = 0; i < count; i++) {
+                        const { x, y } = candidates[i];
+                        g.grid[y][x].mod = 'GOLD';
+                        g.grid[y][x].color = '#eab308';
+                        g.spawnParticles(x * 30 + 15, y * 30 + 15, '#facc15', 8);
+                    }
+                    g.showFloatingText(`★ KUŹNIA MIDASA (+${count} ZŁOTYCH)!`, '#facc15');
+                }
+            },
+            drill: {
+                id: 'drill',
+                name: 'Wiertło Pionowe',
+                icon: 'fa-angles-down',
+                color: 'text-orange-400',
+                bgBox: 'bg-orange-500/10 border-orange-500/40',
+                baseCost: 42,
+                baseCd: 11000,
+                maxLevel: 3,
+                getDesc: (lvl) => `Drąży ${lvl === 1 ? '2 kolumny' : (lvl === 2 ? '3 kolumny' : '4 kolumny')} w dół pod klockiem`,
+                execute: (g, lvl) => {
+                    const width = lvl + 1; // Poz 1: 2, Poz 2: 3, Poz 3: 4 kolumny
+                    const startX = g.currentPiece
+                        ? Math.max(0, Math.min(g.cols - width, g.currentPiece.x))
+                        : Math.floor((g.cols - width) / 2);
+
+                    let destroyed = 0;
+                    for (let x = startX; x < startX + width; x++) {
+                        for (let y = 0; y < g.rows; y++) {
+                            if (g.grid[y][x] !== null) {
+                                destroyed++;
+                                g.spawnParticles(x * 30 + 15, y * 30 + 15, '#f97316', 5);
+                                g.grid[y][x] = null;
+                            }
+                        }
+                    }
+                    g.triggerBoardShake();
+                    const pts = Math.floor(destroyed * 18 * g.mods.scoreMultiplier);
+                    g.addScoreAndProgress(pts);
+                    g.showFloatingText(`🔥 WIERTŁO PIONOWE (+${pts} PKT)`, '#fb923c');
+                }
+            },
+            ibeam: {
+                id: 'ibeam',
+                name: 'Synteza I-Beam',
+                icon: 'fa-wand-magic-sparkles',
+                color: 'text-sky-400',
+                bgBox: 'bg-sky-500/10 border-sky-500/40',
+                baseCost: 28,
+                baseCd: 9000,
+                maxLevel: 3,
+                getDesc: (lvl) => lvl === 1
+                    ? 'Zmienia obecny klocek w pionową belkę I-Beam (⚡)'
+                    : 'Zmienia obecny i następny klocek w belkę I-Beam (⚡/★)',
+                execute: (g, lvl) => {
+                    const makeBeam = (piece, addGold) => {
+                        if (!piece) return;
+                        piece.key = 'I';
+                        piece.name = 'I-Beam';
+                        piece.color = '#00f3ff';
+                        piece.matrix = [
+                            [0, 1, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 1, 0, 0]
+                        ];
+                        piece.cellMods = [
+                            [null, 'MANA', null, null],
+                            [null, addGold ? 'GOLD' : 'NORMAL', null, null],
+                            [null, 'NORMAL', null, null],
+                            [null, addGold && lvl >= 3 ? 'BOMB' : 'NORMAL', null, null]
+                        ];
+                        piece.specialLabel = 'I-BEAM+';
+                        piece.x = Math.max(0, Math.min(g.cols - 4, piece.x));
+                    };
+                    makeBeam(g.currentPiece, lvl >= 2);
+                    if (lvl >= 2) makeBeam(g.nextPiece, lvl >= 3);
+                    g.drawPreviewCanvases();
+                    g.showFloatingText('💠 SYNTEZA I-BEAM!', '#38bdf8');
+                }
+            }
+        };
+
+        /**
+         * PULA 16 PASYWNYCH RELIKTÓW ROGUELIKE
+         */
+        const RELIC_POOL = [
+            {
+                id: 'bomb_chance',
+                name: 'Protokół Pirotechniki',
+                icon: 'fa-bomb',
+                color: 'text-red-400',
+                maxStacks: 3,
+                desc: '+9% szansy na wybuchowy Blok Bombę (3x3) w nowym klocku oraz +25% PKT z wybuchów.',
+                apply: (g) => { g.mods.bombChance = Math.min(0.35, g.mods.bombChance + 0.09); g.mods.bombScoreMult += 0.25; }
+            },
+            {
+                id: 'gold_chance',
+                name: 'Alchemia Midasowa',
+                icon: 'fa-coins',
+                color: 'text-amber-400',
+                maxStacks: 3,
+                desc: '+10% szansy na Złoty Blok w klocku (+80% PKT za linię i +8 Złota). Daje od razu +12 Złota.',
+                apply: (g) => { g.mods.goldChance = Math.min(0.40, g.mods.goldChance + 0.10); g.gold += 12; }
+            },
+            {
+                id: 'plasma_chance',
+                name: 'Ogniwa Plazmowe',
+                icon: 'fa-atom',
+                color: 'text-cyan-300',
+                maxStacks: 3,
+                desc: '+12% szansy na Blok Plazmy (⚡) w klocku, a każdy Blok Plazmy daje o +6 Many więcej.',
+                apply: (g) => { g.mods.manaChance = Math.min(0.45, g.mods.manaChance + 0.12); g.mods.plasmaBonusMana += 6; }
+            },
+            {
+                id: 'mana_leech',
+                name: 'Reaktor Plazmowy',
+                icon: 'fa-bolt',
+                color: 'text-cyan-400',
+                maxStacks: 4,
+                desc: 'Każda wyczyszczona linia daje dodatkowe +3 Energii (Many), a Maks. Mana rośnie o +20.',
+                apply: (g) => { g.mods.manaPerLine += 3; g.maxMana += 20; g.addMana(20); }
+            },
+            {
+                id: 'dot_mastery',
+                name: 'Mikro-Kompilator 1x1',
+                icon: 'fa-circle-dot',
+                color: 'text-emerald-400',
+                maxStacks: 3,
+                desc: 'Odblokowuje i zwiększa szansę na Kropkę 1x1 i Domino 2x1 oraz redukuje trudne klocki 5-polowe.',
+                apply: (g) => { g.mods.smallBlocksWeight += 2; g.mods.hardRogueWeight = Math.max(0.2, g.mods.hardRogueWeight - 0.3); }
+            },
+            {
+                id: 'score_mult',
+                name: 'Podkręcenie Rdzenia',
+                icon: 'fa-microchip',
+                color: 'text-purple-400',
+                maxStacks: 5,
+                desc: 'Zwiększa wszystkie zdobywane punkty o +18% (szybsze pokonywanie sektorów i Bossów).',
+                apply: (g) => { g.mods.scoreMultiplier += 0.18; }
+            },
+            {
+                id: 'combo_king',
+                name: 'Kaskadowy Algorytm',
+                icon: 'fa-layer-group',
+                color: 'text-blue-400',
+                maxStacks: 4,
+                desc: 'Czyszczenie 2 lub więcej linii naraz daje dodatkowe +190 PKT oraz +5 Many.',
+                apply: (g) => { g.mods.multiLineBonus += 190; g.mods.multiLineMana += 5; }
+            },
+            {
+                id: 'anti_gravity',
+                name: 'Stabilizator Grawitacji',
+                icon: 'fa-feather',
+                color: 'text-teal-400',
+                maxStacks: 3,
+                desc: 'Klocki opadają o 14% wolniej na wszystkich etapach, a czas na manewr na dnie rośnie.',
+                apply: (g) => { g.mods.speedReduction *= 0.86; g.lockDelayMax += 70; }
+            },
+            {
+                id: 'skill_discount',
+                name: 'Optymalizacja Energii',
+                icon: 'fa-battery-full',
+                color: 'text-cyan-300',
+                maxStacks: 3,
+                desc: 'Obniża koszt Many wszystkich umiejętności o 12% i skraca ich czas odnowienia o 14%.',
+                apply: (g) => {
+                    g.mods.skillCostMult *= 0.88;
+                    g.mods.cooldownMult *= 0.86;
+                    g.addMana(25);
+                }
+            },
+            {
+                id: 'boss_slayer',
+                name: 'Łowca Rdzeni (Anti-Boss)',
+                icon: 'fa-skull-crossbones',
+                color: 'text-pink-400',
+                maxStacks: 3,
+                desc: 'Zadajesz +28% więcej obrażeń (PKT) wszystkim Bossom, a ich ataki ładują się o 12% wolniej.',
+                apply: (g) => { g.mods.bossDamageMult += 0.28; g.mods.bossSlowMult *= 0.88; }
+            },
+            {
+                id: 'tetris_master',
+                name: 'Przeciążenie 4-Liniowe',
+                icon: 'fa-fire-flame-curved',
+                color: 'text-orange-400',
+                maxStacks: 3,
+                desc: 'Wyczyszczenie 3 lub 4 linii naraz zadaje potężny bonus +450 PKT i odnawia +18 MP.',
+                apply: (g) => { g.mods.heavyClearBonus += 450; g.mods.heavyClearMana += 18; }
+            },
+            {
+                id: 'shield_matrix',
+                name: 'Tarcza Anty-Wirusowa',
+                icon: 'fa-shield-virus',
+                color: 'text-emerald-300',
+                maxStacks: 2,
+                desc: 'Na początku każdego sektora z Bossem otrzymujesz Tarczę blokującą pierwszy atak Bossa!',
+                apply: (g) => { g.mods.bossShieldCharges += 1; g.currentShields += 1; }
+            },
+            {
+                id: 'scrap_recycler',
+                name: 'Recykler Złomu',
+                icon: 'fa-recycle',
+                color: 'text-lime-400',
+                maxStacks: 3,
+                desc: 'Zniszczenie każdego bloku śmieciowego lub lodowego Bossa daje +4 Złota i +45 PKT.',
+                apply: (g) => { g.mods.junkBonusGold += 4; g.mods.junkBonusScore += 45; }
+            },
+            {
+                id: 'mana_regen',
+                name: 'Kondensator Próżniowy',
+                icon: 'fa-charging-station',
+                color: 'text-blue-300',
+                maxStacks: 3,
+                desc: 'Pasywnie regeneruje +1.8 Energii (Many) na sekundę podczas walki.',
+                apply: (g) => { g.mods.manaRegenPerSec += 1.8; }
+            },
+            {
+                id: 'interest_bank',
+                name: 'Kryptowalutowy Skarbiec',
+                icon: 'fa-piggy-bank',
+                color: 'text-yellow-300',
+                maxStacks: 2,
+                desc: 'Po każdym sektorze zyskujesz +20% odsetek od posiadanego Złota (maks. +25 Zł) i +10 Zł teraz.',
+                apply: (g) => { g.mods.goldInterest += 0.20; g.gold += 10; }
+            },
+            {
+                id: 'chain_detonation',
+                name: 'Łańcuchowy Zapalnik',
+                icon: 'fa-radiation',
+                color: 'text-rose-400',
+                maxStacks: 2,
+                desc: 'Wybuchy Bomb 3x3 sięgają o 1 pole głębiej w dół i zostawiają Złoty Blok na dnie krateru.',
+                apply: (g) => { g.mods.bombExtraDepth += 1; g.mods.bombLeavesGold = true; }
+            }
+        ];
+
+        /**
+         * GŁÓWNA KLASA GRY ROGUELIKE TETRIS
+         */
+        class RogueTetrisGame {
+            constructor() {
+                this.cols = 10;
+                this.rows = 20;
+                this.blockSize = 30;
+
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.holdCanvas = document.getElementById('holdCanvas');
+                this.holdCtx = this.holdCanvas.getContext('2d');
+                this.nextCanvas = document.getElementById('nextCanvas');
+                this.nextCtx = this.nextCanvas.getContext('2d');
+                this.nextCanvasMobile = document.getElementById('nextCanvasMobile');
+                this.nextCtxMobile = this.nextCanvasMobile.getContext('2d');
+
+                this.particles = [];
+                this.resetState();
+                this.bindEvents();
+                this.lastTime = 0;
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            resetState() {
+                this.grid = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
+                this.score = 0;
+                this.stageScore = 0;
+                this.stageTarget = 1000;
+                this.lines = 0;
+                this.gold = 15;
+                this.stage = 1;
+                this.combo = -1;
+
+                // Ceny w sklepie polowym (rosną przy kolejnych zakupach)
+                this.rerollCost = 20;
+                this.buyManaCost = 25;
+                this.buyCleanCost = 35;
+
+                this.mana = 20;
+                this.maxMana = 100;
+                this.manaRegenBuffer = 0;
+
+                // Gracz zaczyna BEZ umiejętności aktywnych (4 puste sloty)
+                this.unlockedSkills = []; // tablica obiektów: { id, level, cooldown }
+
+                // Zaostrzony balans startowy
+                this.mods = {
+                    bombChance: 0.04,
+                    goldChance: 0.06,
+                    manaChance: 0.08,
+                    plasmaBonusMana: 18,
+                    manaPerLine: 8,
+                    manaRegenPerSec: 0,
+                    scoreMultiplier: 1.0,
+                    bossDamageMult: 1.0,
+                    bossSlowMult: 1.0,
+                    bombScoreMult: 1.0,
+                    bombExtraDepth: 0,
+                    bombLeavesGold: false,
+                    smallBlocksWeight: 0, // Kropka 1x1 i Domino dopiero po odblokowaniu Mikro-Kompilatora!
+                    hardRogueWeight: 1.0,
+                    multiLineBonus: 0,
+                    multiLineMana: 0,
+                    heavyClearBonus: 0,
+                    heavyClearMana: 0,
+                    speedReduction: 1.0,
+                    skillCostMult: 1.0,
+                    cooldownMult: 1.0,
+                    bossShieldCharges: 0,
+                    junkBonusGold: 0,
+                    junkBonusScore: 0,
+                    goldInterest: 0
+                };
+
+                this.currentShields = 0;
+                this.relics = [];
+                this.relicCounts = {};
+                this.pieceBag = [];
+                this.currentPiece = null;
+                this.nextPiece = null;
+                this.holdPieceData = null;
+                this.canHold = true;
+
+                this.dropCounter = 0;
+                this.baseDropInterval = 800;
+                this.lockDelayCounter = 0;
+                this.lockDelayMax = 350;
+                this.lockResetsUsed = 0;
+                this.maxLockResets = 8;
+                this.slowTimer = 0;
+
+                // Boss State & Debuffs
+                this.isBossStage = false;
+                this.bossType = null;
+                this.bossAttackTimer = 0;
+                this.bossAttackInterval = 8500;
+                this.fogTimer = 0;
+                this.holdLockTimer = 0;
+                this.reverseControlsTimer = 0;
+                this.rotationLockTimer = 0;
+
+                this.state = 'MENU'; // MENU, PLAYING, DRAFT, PAUSED, GAMEOVER
+                this.renderSkillSlots();
+            }
+
+            startNewRun() {
+                sfx.init();
+                this.resetState();
+                document.getElementById('startModal').classList.add('hidden');
+                document.getElementById('pauseOverlay').classList.add('hidden');
+                this.renderRelicsInventory();
+                this.renderSkillSlots();
+                this.setupStage(1);
+                this.nextPiece = this.generatePiece();
+                this.spawnPiece();
+                this.state = 'PLAYING';
+                this.updateUI();
+            }
+
+            togglePause() {
+                if (this.state === 'PLAYING') {
+                    this.state = 'PAUSED';
+                    document.getElementById('pauseOverlay').classList.remove('hidden');
+                    document.getElementById('pauseIcon').className = 'fa-solid fa-play';
+                } else if (this.state === 'PAUSED') {
+                    this.state = 'PLAYING';
+                    document.getElementById('pauseOverlay').classList.add('hidden');
+                    document.getElementById('pauseIcon').className = 'fa-solid fa-pause';
+                    this.lastTime = performance.now();
+                }
+                this.updateUI();
+            }
+
+            setupStage(stageNum) {
+                this.stage = stageNum;
+                this.stageScore = 0;
+                this.fogTimer = 0;
+                this.holdLockTimer = 0;
+                this.reverseControlsTimer = 0;
+                this.rotationLockTimer = 0;
+                document.getElementById('fogOverlay').classList.add('hidden');
+                document.getElementById('holdLockBadge').classList.add('hidden');
+
+                // Co 3 etap to Walka z Bossem
+                this.isBossStage = (stageNum % 3 === 0);
+                const topPanel = document.getElementById('topStatusPanel');
+                const bossTag = document.getElementById('bossTag');
+                const bossTimerContainer = document.getElementById('bossTimerContainer');
+
+                // Wyższe wymagania punktowe dla większego wyzwania
+                const stageGrowth = Math.pow(1.28, stageNum - 1);
+
+                if (this.isBossStage) {
+                    this.currentShields = this.mods.bossShieldCharges;
+                    this.stageTarget = Math.round((1650 * stageGrowth) / 50) * 50;
+
+                    const bosses = [
+                        { id: 'junk', name: 'ARCHITEKT ZŁOMU', subtitle: 'Co 9s wypycha od dołu niekompletny rząd pancernego złomu!', interval: 9000 },
+                        { id: 'fog', name: 'WŁADCA MROKU', subtitle: 'Co 8s zsyła gęstą mgłę na 5.5s i przyspiesza grawitację!', interval: 8000 },
+                        { id: 'chaos', name: 'KODER CHAOSU', subtitle: 'Obraca klocek, blokuje Hold i odwraca kierunki Lewo/Prawo!', interval: 7800 },
+                        { id: 'frost', name: 'KRIOMANTA ZERO', subtitle: 'Zamraża bloki w Bryły Lodu (❄️) wymagające 2-krotnego rozbicia!', interval: 8200 },
+                        { id: 'drain', name: 'WIRUS PRZECIĄŻENIA', subtitle: 'Wysysa Manę, wydłuża Cooldowny i zrzuca z góry bloki-wirusy!', interval: 8500 },
+                        { id: 'gravity', name: 'TYTAN GRAWITACJI', subtitle: 'Uderza falą hiper-grawitacji i wymusza trudne klocki 5-polowe!', interval: 7500 },
+                        { id: 'lockdown', name: 'INKWIZYTOR CENZURY', subtitle: 'Blokuje obrót klocków na 4s i stawia boczne filary!', interval: 8200 }
+                    ];
+                    const bossIdx = Math.floor((stageNum / 3 - 1) % bosses.length);
+                    this.bossType = bosses[bossIdx];
+                    // W wyższych sektorach Bossowie atakują jeszcze szybciej
+                    const cycleSpeedup = Math.max(0.65, 1 - (stageNum - 3) * 0.025);
+                    this.bossAttackInterval = Math.round(this.bossType.interval * cycleSpeedup);
+                    this.bossAttackTimer = this.bossAttackInterval;
+
+                    document.getElementById('stageTitle').textContent = `BOSS: ${this.bossType.name}`;
+                    document.getElementById('stageSubtitle').textContent = this.bossType.subtitle;
+                    document.getElementById('progressLabel').textContent = 'HP BOSSA (ZADAJ OBRAŻENIA PKT)';
+                    document.getElementById('stageProgressBar').className = 'h-full bg-gradient-to-r from-pink-600 via-red-500 to-amber-500 rounded-full transition-all duration-300';
+                    topPanel.classList.add('cyber-panel-pink', 'boss-active-border');
+                    bossTag.classList.remove('hidden');
+                    bossTimerContainer.classList.remove('hidden');
+                } else {
+                    this.stageTarget = Math.round((1000 * stageGrowth) / 50) * 50;
+                    this.bossType = null;
+                    document.getElementById('stageTitle').textContent = `SEKTOR ${stageNum}: CYBER-SIEĆ`;
+                    document.getElementById('stageSubtitle').textContent = `Zdobądź ${this.stageTarget} PKT aby przejść do kolejnego sektora`;
+                    document.getElementById('progressLabel').textContent = 'POSTĘP SEKTORA';
+                    document.getElementById('stageProgressBar').className = 'h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full transition-all duration-300';
+                    topPanel.classList.remove('cyber-panel-pink', 'boss-active-border');
+                    bossTag.classList.add('hidden');
+                    bossTimerContainer.classList.add('hidden');
+                }
+
+                // Szybszy wzrost prędkości opadania z każdym sektorem
+                const rawSpeed = 800 * Math.pow(0.89, stageNum - 1);
+                this.baseDropInterval = Math.max(135, Math.floor(rawSpeed * this.mods.speedReduction));
+                this.updateStatusBadges();
+                this.updateUI();
+            }
+
+            refillBag() {
+                const bag = ['I', 'J', 'L', 'O', 'S', 'T', 'Z', 'I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+
+                // Kropka 1x1 i Domino tylko jeśli gracz zainstalował relikt Mikro-Kompilator!
+                for (let i = 0; i < this.mods.smallBlocksWeight; i++) {
+                    bag.push('DOT', 'DOMINO');
+                }
+                bag.push('CORNER');
+
+                // Od 2 sektora pojawiają się wymagające kształty 5-polowe (PLUS, U_BLK)
+                if (this.stage >= 2) {
+                    const hardCount = this.stage >= 5 ? 2 : 1;
+                    for (let i = 0; i < hardCount; i++) {
+                        if (Math.random() < 0.75 * this.mods.hardRogueWeight) {
+                            bag.push(Math.random() < 0.5 ? 'U_BLK' : 'PLUS');
+                        }
+                    }
+                }
+
+                for (let i = bag.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [bag[i], bag[j]] = [bag[j], bag[i]];
+                }
+                this.pieceBag = bag;
+            }
+
+            generatePiece(forcedKey = null) {
+                if (this.pieceBag.length === 0) {
+                    this.refillBag();
+                }
+                const key = forcedKey || this.pieceBag.pop();
+                const template = SHAPES[key];
+                const matrix = template.matrix.map(row => [...row]);
+
+                const filledCoords = [];
+                const cellMods = matrix.map((row, y) => row.map((val, x) => {
+                    if (!val) return null;
+                    filledCoords.push({ x, y });
+                    return 'NORMAL';
+                }));
+
+                let specialType = 'STD';
+                const r = Math.random();
+                let chosenMod = null;
+                if (r < this.mods.bombChance) {
+                    chosenMod = 'BOMB';
+                    specialType = 'BOMBA';
+                } else if (r < this.mods.bombChance + this.mods.goldChance) {
+                    chosenMod = 'GOLD';
+                    specialType = 'ZŁOTY';
+                } else if (r < this.mods.bombChance + this.mods.goldChance + this.mods.manaChance) {
+                    chosenMod = 'MANA';
+                    specialType = 'PLAZMA';
+                }
+
+                if (chosenMod && filledCoords.length > 0) {
+                    const target = filledCoords[Math.floor(Math.random() * filledCoords.length)];
+                    cellMods[target.y][target.x] = chosenMod;
+                }
+
+                return {
+                    key,
+                    name: template.name,
+                    matrix,
+                    cellMods,
+                    color: template.color,
+                    specialLabel: chosenMod ? `${specialType}` : (template.rogue ? template.name : 'STANDARD'),
+                    x: Math.floor((this.cols - matrix[0].length) / 2),
+                    y: 0
+                };
+            }
+
+            spawnPiece() {
+                this.currentPiece = this.nextPiece || this.generatePiece();
+                this.nextPiece = this.generatePiece();
+                this.currentPiece.x = Math.floor((this.cols - this.currentPiece.matrix[0].length) / 2);
+                this.currentPiece.y = 0;
+                this.canHold = true;
+                this.lockDelayCounter = 0;
+                this.lockResetsUsed = 0;
+                this.dropCounter = 0;
+
+                if (this.collide(this.grid, this.currentPiece)) {
+                    this.triggerGameOver();
+                }
+                this.drawPreviewCanvases();
+                this.updateUI();
+            }
+
+            collide(grid, piece, offsetX = 0, offsetY = 0, customMatrix = null) {
+                const m = customMatrix || piece.matrix;
+                for (let y = 0; y < m.length; y++) {
+                    for (let x = 0; x < m[y].length; x++) {
+                        if (m[y][x] !== 0) {
+                            const newX = piece.x + x + offsetX;
+                            const newY = piece.y + y + offsetY;
+                            if (newX < 0 || newX >= this.cols || newY >= this.rows) {
+                                return true;
+                            }
+                            if (newY >= 0 && grid[newY][newX] !== null) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            resetLockDelayOnMove() {
+                if (this.lockResetsUsed < this.maxLockResets) {
+                    this.lockDelayCounter = Math.max(0, this.lockDelayCounter - 110);
+                    this.lockResetsUsed++;
+                }
+            }
+
+            moveLeft(fromUser = true) {
+                if (this.state !== 'PLAYING') return;
+                if (fromUser && this.reverseControlsTimer > 0) {
+                    this.moveRight(false);
+                    return;
+                }
+                if (!this.collide(this.grid, this.currentPiece, -1, 0)) {
+                    this.currentPiece.x--;
+                    this.resetLockDelayOnMove();
+                    sfx.move();
+                }
+            }
+
+            moveRight(fromUser = true) {
+                if (this.state !== 'PLAYING') return;
+                if (fromUser && this.reverseControlsTimer > 0) {
+                    this.moveLeft(false);
+                    return;
+                }
+                if (!this.collide(this.grid, this.currentPiece, 1, 0)) {
+                    this.currentPiece.x++;
+                    this.resetLockDelayOnMove();
+                    sfx.move();
+                }
+            }
+
+            softDrop() {
+                if (this.state !== 'PLAYING') return;
+                if (!this.collide(this.grid, this.currentPiece, 0, 1)) {
+                    this.currentPiece.y++;
+                    this.score += 1;
+                    this.dropCounter = 0;
+                    this.updateUI();
+                } else {
+                    this.lockPiece();
+                }
+            }
+
+            hardDrop() {
+                if (this.state !== 'PLAYING') return;
+                let dropped = 0;
+                while (!this.collide(this.grid, this.currentPiece, 0, 1)) {
+                    this.currentPiece.y++;
+                    dropped++;
+                }
+                // Hard drop daje tylko punkty do ogólnego wyniku, nie nabija za darmo paska postępu etapu!
+                this.score += dropped * 2;
+                sfx.drop();
+                this.lockPiece();
+            }
+
+            rotatePiece() {
+                if (this.state !== 'PLAYING') return;
+                if (this.rotationLockTimer > 0) {
+                    this.showFloatingText('🔒 OBRÓT ZABLOKOWANY!', '#f43f5e');
+                    return;
+                }
+                const m = this.currentPiece.matrix;
+                const mods = this.currentPiece.cellMods;
+                const N = m.length;
+                const M = m[0].length;
+
+                const rotatedMatrix = Array.from({ length: M }, () => Array(N).fill(0));
+                const rotatedMods = Array.from({ length: M }, () => Array(N).fill(null));
+
+                for (let y = 0; y < N; y++) {
+                    for (let x = 0; x < M; x++) {
+                        rotatedMatrix[x][N - 1 - y] = m[y][x];
+                        rotatedMods[x][N - 1 - y] = mods[y][x];
+                    }
+                }
+
+                const kicks = [
+                    { dx: 0, dy: 0 },
+                    { dx: -1, dy: 0 },
+                    { dx: 1, dy: 0 },
+                    { dx: -2, dy: 0 },
+                    { dx: 2, dy: 0 },
+                    { dx: 0, dy: -1 }
+                ];
+                for (let k of kicks) {
+                    if (!this.collide(this.grid, this.currentPiece, k.dx, k.dy, rotatedMatrix)) {
+                        this.currentPiece.x += k.dx;
+                        this.currentPiece.y += k.dy;
+                        this.currentPiece.matrix = rotatedMatrix;
+                        this.currentPiece.cellMods = rotatedMods;
+                        this.resetLockDelayOnMove();
+                        sfx.rotate();
+                        return;
+                    }
+                }
+            }
+
+            holdPiece() {
+                if (this.state !== 'PLAYING' || !this.canHold || this.holdLockTimer > 0) return;
+                sfx.rotate();
+                if (!this.holdPieceData) {
+                    this.holdPieceData = this.currentPiece;
+                    this.spawnPiece();
+                } else {
+                    const temp = this.currentPiece;
+                    this.currentPiece = this.holdPieceData;
+                    this.holdPieceData = temp;
+                    this.currentPiece.x = Math.floor((this.cols - this.currentPiece.matrix[0].length) / 2);
+                    this.currentPiece.y = 0;
+                    this.dropCounter = 0;
+                    this.lockDelayCounter = 0;
+                    this.lockResetsUsed = 0;
+                }
+                this.canHold = false;
+                this.drawPreviewCanvases();
+            }
+
+            lockPiece() {
+                const p = this.currentPiece;
+
+                for (let y = 0; y < p.matrix.length; y++) {
+                    for (let x = 0; x < p.matrix[y].length; x++) {
+                        if (p.matrix[y][x] !== 0) {
+                            const gx = p.x + x;
+                            const gy = p.y + y;
+                            if (gy >= 0 && gy < this.rows && gx >= 0 && gx < this.cols) {
+                                const modType = p.cellMods[y][x] || 'NORMAL';
+                                this.grid[gy][gx] = {
+                                    color: p.color,
+                                    mod: modType,
+                                    isJunk: false
+                                };
+                            }
+                        }
+                    }
+                }
+
+                // 1. Najpierw sprawdzamy pełne linie
+                const clearedBeforeBomb = this.checkLines(1.0, false);
+
+                // 2. Detonacja pozostałych na planszy Bloków-Bomb
+                const bombsToDetonate = [];
+                for (let y = 0; y < this.rows; y++) {
+                    for (let x = 0; x < this.cols; x++) {
+                        if (this.grid[y][x] && this.grid[y][x].mod === 'BOMB') {
+                            bombsToDetonate.push({ x, y });
+                        }
+                    }
+                }
+
+                let clearedAfterBomb = 0;
+                if (bombsToDetonate.length > 0 && this.state === 'PLAYING') {
+                    sfx.explosion();
+                    this.triggerBoardShake();
+                    let destroyedCount = 0;
+                    let bonusGold = 0;
+                    let bonusMana = 0;
+                    let junkDestroyed = 0;
+                    const maxDy = 1 + this.mods.bombExtraDepth;
+
+                    bombsToDetonate.forEach(b => {
+                        this.spawnParticles(b.x * this.blockSize + 15, b.y * this.blockSize + 15, '#ef4444', 22);
+                        for (let dy = -1; dy <= maxDy; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const ny = b.y + dy;
+                                const nx = b.x + dx;
+                                if (ny >= 0 && ny < this.rows && nx >= 0 && nx < this.cols) {
+                                    const targetCell = this.grid[ny][nx];
+                                    if (targetCell !== null) {
+                                        destroyedCount++;
+                                        if (targetCell.mod === 'GOLD') bonusGold += 6;
+                                        if (targetCell.mod === 'MANA') bonusMana += 12;
+                                        if (targetCell.isJunk || targetCell.mod === 'ICE') junkDestroyed++;
+                                        this.grid[ny][nx] = null;
+                                    }
+                                }
+                            }
+                        }
+                        if (this.mods.bombLeavesGold) {
+                            const craterY = Math.min(this.rows - 1, b.y + maxDy);
+                            this.grid[craterY][b.x] = { color: '#eab308', mod: 'GOLD', isJunk: false };
+                        }
+                    });
+
+                    if (junkDestroyed > 0 && this.mods.junkBonusGold > 0) {
+                        bonusGold += junkDestroyed * this.mods.junkBonusGold;
+                    }
+                    if (bonusGold > 0) this.gold += bonusGold;
+                    if (bonusMana > 0) this.addMana(bonusMana);
+
+                    const rawBombPts = (destroyedCount * 20 * this.mods.bombScoreMult) + (junkDestroyed * this.mods.junkBonusScore);
+                    const bombPoints = Math.floor(rawBombPts * this.mods.scoreMultiplier);
+                    this.addScoreAndProgress(bombPoints);
+                    this.showFloatingText(`💥 WYBUCH +${bombPoints}`, '#f87171');
+
+                    clearedAfterBomb = this.checkLines(1.0, false);
+                }
+
+                if (clearedBeforeBomb + clearedAfterBomb === 0) {
+                    this.combo = -1;
+                }
+
+                this.updateStatusBadges();
+                if (this.state === 'PLAYING') {
+                    this.spawnPiece();
+                }
+            }
+
+            checkLines(manaMult = 1.0, resetComboOnZero = false) {
+                let linesCleared = 0;
+                let goldBlocksCleared = 0;
+                let manaBlocksCleared = 0;
+                let junkOrIceCleared = 0;
+                const thawedColumns = [];
+
+                for (let y = this.rows - 1; y >= 0; y--) {
+                    if (this.grid[y].every(cell => cell !== null)) {
+                        for (let x = 0; x < this.cols; x++) {
+                            const cell = this.grid[y][x];
+                            if (cell.mod === 'GOLD') goldBlocksCleared++;
+                            if (cell.mod === 'MANA') manaBlocksCleared++;
+                            if (cell.isJunk || cell.mod === 'ICE') junkOrIceCleared++;
+                            if (cell.mod === 'ICE') {
+                                thawedColumns.push({ x, y });
+                            }
+                            this.spawnParticles(x * this.blockSize + 15, y * this.blockSize + 15, cell.color, 6);
+                        }
+
+                        this.grid.splice(y, 1);
+                        this.grid.unshift(Array(this.cols).fill(null));
+                        linesCleared++;
+                        y++;
+                    }
+                }
+
+                // Bryły Lodu (❄️) po wyczyszczeniu linii pękają i zostawiają rozmrożony blok na wierzchu danej kolumny
+                if (thawedColumns.length > 0) {
+                    thawedColumns.forEach(({ x }) => {
+                        for (let ry = this.rows - 1; ry >= 0; ry--) {
+                            if (this.grid[ry][x] === null) {
+                                this.grid[ry][x] = { color: '#38bdf8', mod: 'NORMAL', isJunk: false };
+                                break;
+                            }
+                        }
+                    });
+                }
+
+                if (linesCleared > 0) {
+                    sfx.clearLine(linesCleared);
+                    this.lines += linesCleared;
+                    this.combo++;
+
+                    const baseLineScores = [0, 100, 260, 500, 850, 1300];
+                    const stageScale = 1 + (this.stage - 1) * 0.08;
+                    let points = (baseLineScores[Math.min(linesCleared, 5)] || 1300) * stageScale;
+
+                    if (linesCleared >= 2) {
+                        points += this.mods.multiLineBonus;
+                    }
+                    if (linesCleared >= 3) {
+                        points += this.mods.heavyClearBonus;
+                    }
+                    if (this.combo > 0) {
+                        points += Math.min(this.combo, 8) * 40 * stageScale;
+                    }
+                    if (junkOrIceCleared > 0 && this.mods.junkBonusScore > 0) {
+                        points += junkOrIceCleared * this.mods.junkBonusScore;
+                    }
+
+                    // Zbalansowany bonus Złotych Bloków (+80% PKT i +8 Zł za każdy)
+                    if (goldBlocksCleared > 0) {
+                        points *= (1 + goldBlocksCleared * 0.8);
+                        const extraGold = goldBlocksCleared * 8;
+                        this.gold += extraGold;
+                        this.showFloatingText(`★ ZŁOTY BONUS +${extraGold} ZŁ`, '#fbbf24');
+                    }
+
+                    if (junkOrIceCleared > 0 && this.mods.junkBonusGold > 0) {
+                        this.gold += junkOrIceCleared * this.mods.junkBonusGold;
+                    }
+
+                    points = Math.floor(points * this.mods.scoreMultiplier);
+                    this.gold += linesCleared * 2 + (linesCleared >= 3 ? 3 : 0);
+
+                    // Ładowanie Many
+                    const multiManaBonus = linesCleared >= 2 ? (linesCleared - 1) * 3 + this.mods.multiLineMana : 0;
+                    const heavyMana = linesCleared >= 3 ? this.mods.heavyClearMana : 0;
+                    const comboMana = this.combo > 0 ? Math.min(this.combo * 2, 8) : 0;
+                    const rawManaGain = (linesCleared * this.mods.manaPerLine) + multiManaBonus + heavyMana + comboMana + (manaBlocksCleared * this.mods.plasmaBonusMana);
+                    this.addMana(Math.round(rawManaGain * manaMult));
+
+                    this.addScoreAndProgress(points);
+                    const comboNames = ['', 'POJEDYNCZA', 'PODWÓJNA!', 'POTRÓJNA!!', 'TETRO-BLAST!!!', 'PENTA-CORE!!!!'];
+                    const comboSuffix = this.combo > 0 ? ` (${this.combo}x COMBO)` : '';
+                    this.showFloatingText(`${comboNames[Math.min(linesCleared, 5)]}${comboSuffix} +${points}`, '#00f3ff');
+                } else if (resetComboOnZero) {
+                    this.combo = -1;
+                }
+
+                return linesCleared;
+            }
+
+            addScoreAndProgress(pts) {
+                const effectiveProgress = this.isBossStage ? Math.floor(pts * this.mods.bossDamageMult) : pts;
+                this.score += pts;
+                this.stageScore += effectiveProgress;
+                if (this.stageScore >= this.stageTarget && this.state === 'PLAYING') {
+                    this.completeStage();
+                }
+                this.updateUI();
+            }
+
+            addMana(amount) {
+                this.mana = Math.min(this.maxMana, Math.max(0, Math.round(this.mana + amount)));
+                this.updateUI();
+            }
+
+            getSkillCost(skillDef, level) {
+                const base = Math.max(15, skillDef.baseCost - (level - 1) * 3);
+                return Math.max(12, Math.round(base * this.mods.skillCostMult));
+            }
+
+            getSkillCooldown(skillDef, level) {
+                const base = Math.max(4000, skillDef.baseCd - (level - 1) * 1000);
+                return Math.round(base * this.mods.cooldownMult);
+            }
+
+            /**
+             * UŻYCIE ODBLOKOWANEJ UMIEJĘTNOŚCI (SLOT 1 - 4)
+             */
+            useSkill(slotNumber) {
+                if (this.state !== 'PLAYING') return;
+                const slotIdx = slotNumber - 1;
+                const slotObj = this.unlockedSkills[slotIdx];
+                if (!slotObj) {
+                    this.showFloatingText(`SLOT [${slotNumber}] JEST PUSTY!`, '#64748b');
+                    return;
+                }
+
+                if (slotObj.cooldown > 0) {
+                    this.showFloatingText('UMIEJĘTNOŚĆ SIĘ ODNAWIA!', '#fbbf24');
+                    return;
+                }
+
+                const def = SKILL_CATALOG[slotObj.id];
+                const cost = this.getSkillCost(def, slotObj.level);
+                if (this.mana < cost) {
+                    this.showFloatingText('BRAK ENERGII (MANY)!', '#f43f5e');
+                    return;
+                }
+
+                this.mana -= cost;
+                slotObj.cooldown = this.getSkillCooldown(def, slotObj.level);
+                sfx.skill();
+                def.execute(this, slotObj.level);
+                this.updateUI();
+            }
+
+            renderSkillSlots() {
+                const container = document.getElementById('skillsContainer');
+                if (!container) return;
+                container.innerHTML = '';
+                document.getElementById('skillSlotsCountBadge').textContent = `${this.unlockedSkills.length} / 4`;
+
+                for (let i = 0; i < 4; i++) {
+                    const slotNum = i + 1;
+                    const slotObj = this.unlockedSkills[i];
+
+                    if (!slotObj) {
+                        const emptyEl = document.createElement('div');
+                        emptyEl.className = 'w-full bg-slate-950/60 border border-dashed border-slate-800 rounded-lg p-2.5 flex items-center justify-between opacity-65';
+                        emptyEl.innerHTML = `
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0">
+                                    <i class="fa-solid fa-lock"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] font-orbitron px-1.5 py-0.2 bg-slate-900 text-slate-500 rounded border border-slate-800">[${slotNum}]</span>
+                                        <span class="font-bold text-xs text-slate-500 font-orbitron">PUSTY SLOT</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-600 leading-tight">Odblokuj w ulepszeniach po sektorze</div>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(emptyEl);
+                    } else {
+                        const def = SKILL_CATALOG[slotObj.id];
+                        const cost = this.getSkillCost(def, slotObj.level);
+                        const btn = document.createElement('button');
+                        btn.id = `skillBtn${slotNum}`;
+                        btn.onclick = () => this.useSkill(slotNum);
+                        btn.className = 'skill-btn w-full text-left bg-slate-900/90 border border-slate-700/80 rounded-lg p-2.5 flex items-center justify-between group';
+                        btn.innerHTML = `
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-lg ${def.bgBox} border flex items-center justify-center ${def.color} font-bold text-base shrink-0">
+                                    <i class="fa-solid ${def.icon}"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] font-orbitron px-1.5 py-0.2 bg-slate-800 text-cyan-300 rounded border border-slate-600">[${slotNum}]</span>
+                                        <span class="font-bold text-sm text-white group-hover:text-cyan-300 transition">${def.name}</span>
+                                        <span class="text-[9px] font-orbitron px-1 py-0.1 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">Poz.${slotObj.level}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 leading-tight">${def.getDesc(slotObj.level)}</div>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0 ml-1">
+                                <span class="font-orbitron font-bold text-xs text-cyan-400 block" id="skillCost${slotNum}">${cost} MP</span>
+                                <span id="skillCd${slotNum}" class="hidden text-[10px] text-amber-400 font-orbitron font-bold"></span>
+                            </div>
+                        `;
+                        container.appendChild(btn);
+                    }
+                }
+            }
+
+            /**
+             * MECHANIKA 7 BOSSÓW
+             */
+            triggerBossAttack() {
+                if (!this.isBossStage || !this.bossType) return;
+
+                // Sprawdzenie Tarczy Anty-Wirusowej
+                if (this.currentShields > 0) {
+                    this.currentShields--;
+                    sfx.skill();
+                    this.updateStatusBadges();
+                    this.showFloatingText('🛡️ TARCZA ZABLOKOWAŁA ATAK BOSSA!', '#10b981');
+                    return;
+                }
+
+                sfx.bossAttack();
+                this.triggerBoardShake();
+
+                if (this.bossType.id === 'junk') {
+                    this.grid.shift();
+                    const hole1 = Math.floor(Math.random() * this.cols);
+                    let hole2 = Math.floor(Math.random() * (this.cols - 1));
+                    if (hole2 >= hole1) hole2++;
+
+                    const junkRow = Array.from({ length: this.cols }, (_, idx) => {
+                        if (idx === hole1 || idx === hole2) return null;
+                        return { color: '#475569', mod: 'NORMAL', isJunk: true };
+                    });
+                    this.grid.push(junkRow);
+
+                    if (this.currentPiece && this.collide(this.grid, this.currentPiece) && this.currentPiece.y > 0) {
+                        this.currentPiece.y--;
+                    }
+                    this.showFloatingText('⚠️ BOSS: PANCERNY ZŁOM!', '#ff007f');
+                }
+                else if (this.bossType.id === 'fog') {
+                    this.fogTimer = 5500;
+                    document.getElementById('fogOverlay').classList.remove('hidden');
+                    this.updateStatusBadges();
+                    this.showFloatingText('⚠️ BOSS: GĘSTY MROK (5.5s)!', '#ff007f');
+                }
+                else if (this.bossType.id === 'chaos') {
+                    this.rotatePiece();
+                    this.holdLockTimer = 4500;
+                    this.reverseControlsTimer = 3500;
+                    document.getElementById('holdLockBadge').classList.remove('hidden');
+                    this.updateStatusBadges();
+                    this.showFloatingText('⚠️ BOSS: ODWRÓCONE STEROWANIE (3.5s)!', '#ff007f');
+                }
+                else if (this.bossType.id === 'frost') {
+                    // Zamraża do 4 bloków na planszy w Bryły Lodu (❄️)
+                    const targets = [];
+                    for (let y = 0; y < this.rows; y++) {
+                        for (let x = 0; x < this.cols; x++) {
+                            if (this.grid[y][x] && this.grid[y][x].mod === 'NORMAL') {
+                                targets.push({ x, y });
+                            }
+                        }
+                    }
+                    targets.sort(() => 0.5 - Math.random());
+                    const count = Math.min(targets.length, 4);
+                    for (let i = 0; i < count; i++) {
+                        const { x, y } = targets[i];
+                        this.grid[y][x].mod = 'ICE';
+                        this.grid[y][x].color = '#0284c7';
+                        this.spawnParticles(x * 30 + 15, y * 30 + 15, '#38bdf8', 7);
+                    }
+                    this.showFloatingText(`❄️ BOSS: ZAMROŻONO ${count} BLOKÓW!`, '#38bdf8');
+                }
+                else if (this.bossType.id === 'drain') {
+                    // Wysysa Manę, nakłada +2s na odnowienia i zrzuca 2 bloki-wirusy
+                    this.addMana(-18);
+                    this.unlockedSkills.forEach(s => { s.cooldown += 2000; });
+                    for (let i = 0; i < 2; i++) {
+                        const vx = Math.floor(Math.random() * this.cols);
+                        for (let vy = this.rows - 1; vy >= 4; vy--) {
+                            if (this.grid[vy][vx] === null) {
+                                this.grid[vy][vx] = { color: '#10b981', mod: 'NORMAL', isJunk: true };
+                                this.spawnParticles(vx * 30 + 15, vy * 30 + 15, '#10b981', 8);
+                                break;
+                            }
+                        }
+                    }
+                    this.showFloatingText('☣️ BOSS: DRENAŻ MANY I WIRUSY!', '#10b981');
+                }
+                else if (this.bossType.id === 'gravity') {
+                    // Hiper-grawitacja (opuszcza klocek o maks. 3 pola) i podmienia następny klocek na 5-polowy
+                    for (let i = 0; i < 3; i++) {
+                        if (this.currentPiece && !this.collide(this.grid, this.currentPiece, 0, 1)) {
+                            this.currentPiece.y++;
+                        }
+                    }
+                    this.nextPiece = this.generatePiece(Math.random() < 0.5 ? 'PLUS' : 'U_BLK');
+                    this.drawPreviewCanvases();
+                    this.showFloatingText('⏬ BOSS: HIPER-GRAWITACJA!', '#f59e0b');
+                }
+                else if (this.bossType.id === 'lockdown') {
+                    // Blokuje obracanie klocków na 4s i dodaje 2 boczne bloki śmieciowe
+                    this.rotationLockTimer = 4000;
+                    [0, this.cols - 1].forEach(col => {
+                        for (let vy = this.rows - 1; vy >= 5; vy--) {
+                            if (this.grid[vy][col] === null) {
+                                this.grid[vy][col] = { color: '#64748b', mod: 'NORMAL', isJunk: true };
+                                break;
+                            }
+                        }
+                    });
+                    this.updateStatusBadges();
+                    this.showFloatingText('🔒 BOSS: BLOKADA OBROTU (4s)!', '#c084fc');
+                }
+            }
+
+            /**
+             * UKOŃCZENIE ETAPU I EKRAN DRAFTU KART (UMIEJĘTNOŚCI + RELIKTY)
+             */
+            completeStage() {
+                this.state = 'DRAFT';
+                sfx.stageClear();
+
+                // Odsetki ze Skarbca jeśli gracz posiada relikt
+                if (this.mods.goldInterest > 0) {
+                    const interest = Math.min(25, Math.floor(this.gold * this.mods.goldInterest));
+                    this.gold += interest;
+                }
+
+                const stageBonusGold = this.isBossStage ? 32 : 14;
+                this.gold += stageBonusGold;
+                this.rerollCost = 20;
+
+                // Mniejsze darmowe czyszczenie na koniec sektora (1 wiersz, 2 po Bossie)
+                const rewardRows = this.isBossStage ? 2 : 1;
+                for (let i = 0; i < rewardRows; i++) {
+                    this.grid.pop();
+                    this.grid.unshift(Array(this.cols).fill(null));
+                }
+
+                this.generateDraftCards();
+                this.updateDraftShopUI();
+                document.getElementById('draftModal').classList.remove('hidden');
+            }
+
+            updateDraftShopUI() {
+                document.getElementById('draftGoldDisplay').textContent = this.gold;
+                document.getElementById('rerollCostText').textContent = this.rerollCost;
+                document.getElementById('buyManaCostText').textContent = this.buyManaCost;
+                document.getElementById('buyCleanCostText').textContent = this.buyCleanCost;
+
+                document.getElementById('rerollBtn').disabled = (this.gold < this.rerollCost);
+                document.getElementById('buyManaBtn').disabled = (this.gold < this.buyManaCost || this.mana >= this.maxMana);
+                const hasBlocks = this.grid.some(row => row.some(cell => cell !== null));
+                document.getElementById('buyCleanBtn').disabled = (this.gold < this.buyCleanCost || !hasBlocks);
+            }
+
+            buildCandidateCards() {
+                const skillCards = [];
+                const ownedIds = this.unlockedSkills.map(s => s.id);
+
+                // 1. Karty nowych umiejętności (jeśli mamy wolny slot < 4)
+                if (this.unlockedSkills.length < 4) {
+                    Object.values(SKILL_CATALOG).forEach(def => {
+                        if (!ownedIds.includes(def.id)) {
+                            skillCards.push({
+                                cardType: 'NEW_SKILL',
+                                id: `new_skill_${def.id}`,
+                                skillId: def.id,
+                                name: def.name,
+                                icon: def.icon,
+                                color: def.color,
+                                badgeText: `NOWA UMIEJĘTNOŚĆ [SLOT ${this.unlockedSkills.length + 1}]`,
+                                badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                                desc: `${def.getDesc(1)}. Koszt: ${this.getSkillCost(def, 1)} MP, Odnowienie: ${(this.getSkillCooldown(def, 1) / 1000).toFixed(1)}s.`,
+                                apply: (g) => {
+                                    g.unlockedSkills.push({ id: def.id, level: 1, cooldown: 0 });
+                                    g.renderSkillSlots();
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 2. Karty ulepszeń posiadanych umiejętności (do Poziomu 3)
+                this.unlockedSkills.forEach((slotObj, idx) => {
+                    const def = SKILL_CATALOG[slotObj.id];
+                    if (slotObj.level < def.maxLevel) {
+                        const nextLvl = slotObj.level + 1;
+                        skillCards.push({
+                            cardType: 'UPGRADE_SKILL',
+                            id: `upg_skill_${def.id}`,
+                            skillId: def.id,
+                            name: `${def.name} (Poz. ${nextLvl})`,
+                            icon: def.icon,
+                            color: def.color,
+                            badgeText: `ULEPSZENIE SLOTU [${idx + 1}]`,
+                            badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                            desc: `Ulepsza umiejętność do Poz. ${nextLvl}: ${def.getDesc(nextLvl)} oraz obniża koszt i czas odnowienia.`,
+                            apply: (g) => {
+                                slotObj.level = nextLvl;
+                                g.renderSkillSlots();
+                            }
+                        });
+                    }
+                });
+
+                // 3. Karty pasywnych reliktów
+                const relicCards = RELIC_POOL
+                    .filter(r => (this.relicCounts[r.id] || 0) < (r.maxStacks || 99))
+                    .map(r => {
+                        const cur = this.relicCounts[r.id] || 0;
+                        return {
+                            cardType: 'RELIC',
+                            id: r.id,
+                            relicRef: r,
+                            name: r.name,
+                            icon: r.icon,
+                            color: r.color,
+                            badgeText: `RELIKT PASYWNY (${cur + 1}/${r.maxStacks})`,
+                            badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                            desc: r.desc,
+                            apply: (g) => {
+                                r.apply(g);
+                                g.relicCounts[r.id] = (g.relicCounts[r.id] || 0) + 1;
+                                if (!g.relics.find(x => x.id === r.id)) {
+                                    g.relics.push(r);
+                                }
+                                g.renderRelicsInventory();
+                                g.renderSkillSlots();
+                            }
+                        };
+                    });
+
+                return { skillCards, relicCards };
+            }
+
+            generateDraftCards() {
+                const container = document.getElementById('draftCardsContainer');
+                container.innerHTML = '';
+
+                const { skillCards, relicCards } = this.buildCandidateCards();
+                const shuffledSkills = [...skillCards].sort(() => 0.5 - Math.random());
+                const shuffledRelics = [...relicCards].sort(() => 0.5 - Math.random());
+
+                const choices = [];
+                // Jeśli gracz nie ma jeszcze żadnej umiejętności (po 1. sektorze), daj 2 umiejętności do wyboru + 1 relikt!
+                if (this.unlockedSkills.length === 0 && shuffledSkills.length >= 2) {
+                    choices.push(shuffledSkills.pop(), shuffledSkills.pop());
+                } else if (shuffledSkills.length > 0) {
+                    // W kolejnych sektorach zawsze gwarantuj przynajmniej 1 kartę umiejętności (nową lub ulepszenie)
+                    choices.push(shuffledSkills.pop());
+                }
+
+                const remainingPool = [...shuffledSkills, ...shuffledRelics].sort(() => 0.5 - Math.random());
+                while (choices.length < 3 && remainingPool.length > 0) {
+                    choices.push(remainingPool.pop());
+                }
+
+                this.currentDraftChoices = choices;
+
+                this.currentDraftChoices.forEach((cardData, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'card-choice cyber-panel rounded-xl p-5 flex flex-col justify-between cursor-pointer border border-slate-700 hover:border-cyan-400 bg-slate-900/90';
+                    card.onclick = () => this.selectDraftCard(index);
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-start justify-between gap-2 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-center ${cardData.color} text-2xl shadow-md shrink-0">
+                                    <i class="fa-solid ${cardData.icon}"></i>
+                                </div>
+                                <span class="text-[10px] font-orbitron px-2 py-0.5 rounded border font-bold text-right ${cardData.badgeClass}">
+                                    ${cardData.badgeText}
+                                </span>
+                            </div>
+                            <h3 class="font-orbitron font-bold text-base text-white mb-2">${cardData.name}</h3>
+                            <p class="text-xs text-slate-300 leading-relaxed">${cardData.desc}</p>
+                        </div>
+                        <div class="mt-5 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-orbitron text-cyan-400 font-bold">
+                            <span>ZAINSTALUJ</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            selectDraftCard(index) {
+                const chosen = this.currentDraftChoices[index];
+                if (!chosen) return;
+
+                chosen.apply(this);
+
+                document.getElementById('draftModal').classList.add('hidden');
+                this.setupStage(this.stage + 1);
+                this.state = 'PLAYING';
+                this.lastTime = performance.now();
+                this.updateUI();
+            }
+
+            rerollDraft() {
+                if (this.gold < this.rerollCost) return;
+                this.gold -= this.rerollCost;
+                this.rerollCost += 12;
+                sfx.rotate();
+                this.generateDraftCards();
+                this.updateDraftShopUI();
+                this.updateUI();
+            }
+
+            buyFullMana() {
+                if (this.gold < this.buyManaCost || this.mana >= this.maxMana) return;
+                this.gold -= this.buyManaCost;
+                this.buyManaCost += 10;
+                this.mana = this.maxMana;
+                sfx.skill();
+                this.updateDraftShopUI();
+                this.updateUI();
+            }
+
+            buyRowClean() {
+                if (this.gold < this.buyCleanCost) return;
+                this.gold -= this.buyCleanCost;
+                this.buyCleanCost += 15;
+                for (let i = 0; i < 2; i++) {
+                    this.grid.pop();
+                    this.grid.unshift(Array(this.cols).fill(null));
+                }
+                sfx.clearLine(2);
+                this.updateDraftShopUI();
+                this.updateUI();
+            }
+
+            renderRelicsInventory() {
+                const list = document.getElementById('relicsList');
+                const totalCount = Object.values(this.relicCounts).reduce((a, b) => a + b, 0);
+                document.getElementById('relicCountBadge').textContent = totalCount;
+                list.innerHTML = '';
+
+                if (this.relics.length === 0) {
+                    list.innerHTML = `
+                        <div class="text-xs text-slate-500 italic text-center py-6">
+                            Ukończ pierwszy sektor, aby odblokować umiejętności i cyber-relikty.
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.relics.forEach(r => {
+                    const count = this.relicCounts[r.id] || 1;
+                    const item = document.createElement('div');
+                    item.className = 'bg-slate-900/90 border border-slate-800 rounded-lg p-2 flex items-start gap-2.5';
+                    item.innerHTML = `
+                        <div class="w-7 h-7 rounded bg-slate-800 flex items-center justify-center ${r.color} shrink-0 text-sm mt-0.5">
+                            <i class="fa-solid ${r.icon}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <div class="font-bold text-xs text-white leading-tight">${r.name}</div>
+                                ${count > 1 ? `<span class="text-[10px] font-orbitron px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">x${count}</span>` : ''}
+                            </div>
+                            <div class="text-[10px] text-slate-400 leading-tight mt-0.5">${r.desc}</div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+
+            triggerGameOver() {
+                this.state = 'GAMEOVER';
+                sfx.bossAttack();
+                document.getElementById('modalMainTitle').textContent = 'SYSTEM ZNISZCZONY';
+                document.getElementById('modalSubBadge').textContent = 'KONIEC PODEJŚCIA (GAME OVER)';
+                document.getElementById('modalDescription').textContent = 'Twoja matryca została przepełniona. Wyciągnij wnioski i rozpocznij kolejny protokół!';
+                document.getElementById('finalStageStat').textContent = this.stage;
+                document.getElementById('finalScoreStat').textContent = this.score;
+                document.getElementById('finalLinesStat').textContent = this.lines;
+                document.getElementById('gameOverStats').classList.remove('hidden');
+                document.getElementById('startModal').classList.remove('hidden');
+            }
+
+            /**
+             * EFEKTY WIZUALNE
+             */
+            spawnParticles(x, y, color, count = 10) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push({
+                        x, y,
+                        vx: (Math.random() - 0.5) * 7,
+                        vy: (Math.random() - 0.5) * 7 - 1.5,
+                        size: Math.random() * 4 + 2,
+                        color,
+                        alpha: 1.0
+                    });
+                }
+            }
+
+            showFloatingText(text, color = '#00f3ff') {
+                const container = document.getElementById('floatingTextContainer');
+                const el = document.createElement('div');
+                el.className = 'font-orbitron font-extrabold text-xs md:text-sm tracking-wider uppercase absolute left-1/2 -translate-x-1/2 pointer-events-none transition-all duration-700 whitespace-nowrap drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]';
+                el.style.color = color;
+                el.style.top = '45%';
+                el.textContent = text;
+                container.appendChild(el);
+
+                requestAnimationFrame(() => {
+                    el.style.top = '22%';
+                    el.style.opacity = '0';
+                });
+                setTimeout(() => el.remove(), 750);
+            }
+
+            triggerBoardShake() {
+                const wrapper = document.getElementById('boardWrapper');
+                wrapper.classList.remove('shake');
+                void wrapper.offsetWidth;
+                wrapper.classList.add('shake');
+            }
+
+            updateStatusBadges() {
+                const container = document.getElementById('statusBadgesContainer');
+                container.innerHTML = '';
+                if (this.currentShields > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-400 text-emerald-300 font-orbitron text-[10px] font-bold">🛡️ TARCZA x${this.currentShields}</span>`;
+                }
+                if (this.combo > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-400 text-amber-300 font-orbitron text-[10px] font-bold">🔥 COMBO x${this.combo}</span>`;
+                }
+                if (this.slowTimer > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-400 text-cyan-300 font-orbitron text-[10px] font-bold">⏳ SPOWOLNIENIE ${(this.slowTimer/1000).toFixed(1)}s</span>`;
+                }
+                if (this.fogTimer > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-pink-950/90 border border-pink-400 text-pink-300 font-orbitron text-[10px] font-bold">👁️ MROK ${(this.fogTimer/1000).toFixed(1)}s</span>`;
+                }
+                if (this.reverseControlsTimer > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-400 text-rose-300 font-orbitron text-[10px] font-bold">⇄ ODWRÓCONE KIERUNKI ${(this.reverseControlsTimer/1000).toFixed(1)}s</span>`;
+                }
+                if (this.rotationLockTimer > 0) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-purple-950/90 border border-purple-400 text-purple-300 font-orbitron text-[10px] font-bold">🔒 BLOKADA OBROTU ${(this.rotationLockTimer/1000).toFixed(1)}s</span>`;
+                }
+                if (this.isBossStage && this.bossType) {
+                    container.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-pink-950/90 border border-pink-500 text-pink-300 font-orbitron text-[10px] font-bold">💀 ${this.bossType.name}</span>`;
+                }
+            }
+
+            /**
+             * AKTUALIZACJA INTERFEJSU HTML
+             */
+            updateUI() {
+                document.getElementById('stageBadge').textContent = this.stage;
+                document.getElementById('scoreDisplay').textContent = this.score.toLocaleString('pl-PL');
+                document.getElementById('goldDisplay').textContent = this.gold;
+                document.getElementById('linesDisplay').textContent = this.lines;
+
+                const pct = Math.min(100, Math.floor((this.stageScore / this.stageTarget) * 100));
+                document.getElementById('stageProgressBar').style.width = `${pct}%`;
+                document.getElementById('progressNumbers').textContent = `${this.stageScore} / ${this.stageTarget} PKT`;
+
+                const manaPct = Math.min(100, Math.floor((this.mana / this.maxMana) * 100));
+                document.getElementById('manaBar').style.width = `${manaPct}%`;
+                document.getElementById('manaText').textContent = `${this.mana} / ${this.maxMana}`;
+
+                for (let i = 0; i < this.unlockedSkills.length; i++) {
+                    const slotNum = i + 1;
+                    const slotObj = this.unlockedSkills[i];
+                    const def = SKILL_CATALOG[slotObj.id];
+                    const cost = this.getSkillCost(def, slotObj.level);
+
+                    const btn = document.getElementById(`skillBtn${slotNum}`);
+                    const costEl = document.getElementById(`skillCost${slotNum}`);
+                    const cdEl = document.getElementById(`skillCd${slotNum}`);
+                    if (!btn || !costEl || !cdEl) continue;
+
+                    costEl.textContent = `${cost} MP`;
+                    if (slotObj.cooldown > 0) {
+                        cdEl.textContent = `${(slotObj.cooldown / 1000).toFixed(1)}s`;
+                        cdEl.classList.remove('hidden');
+                    } else {
+                        cdEl.classList.add('hidden');
+                    }
+                    btn.disabled = (this.mana < cost || slotObj.cooldown > 0 || this.state !== 'PLAYING');
+                }
+            }
+
+            /**
+             * RYSOWANIE PLANSZY I KLOCKÓW
+             */
+            drawCell(ctx, x, y, size, color, mod = 'NORMAL', alpha = 1.0) {
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                ctx.fillStyle = mod === 'ICE' ? '#0284c7' : color;
+                ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+
+                ctx.strokeStyle = mod === 'ICE' ? '#bae6fd' : 'rgba(255,255,255,0.35)';
+                ctx.lineWidth = mod === 'ICE' ? 2 : 1.5;
+                ctx.strokeRect(x * size + 2.5, y * size + 2.5, size - 5, size - 5);
+
+                if (mod === 'BOMB') {
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('💣', x * size + size / 2, y * size + size / 2 + 1);
+                } else if (mod === 'GOLD') {
+                    ctx.strokeStyle = '#fef08a';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x * size + 2, y * size + 2, size - 4, size - 4);
+                    ctx.fillStyle = '#fef08a';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('★', x * size + size / 2, y * size + size / 2 + 1);
+                } else if (mod === 'MANA') {
+                    ctx.fillStyle = '#e0f2fe';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚡', x * size + size / 2, y * size + size / 2 + 1);
+                } else if (mod === 'ICE') {
+                    ctx.fillStyle = '#e0f2fe';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('❄️', x * size + size / 2, y * size + size / 2 + 1);
+                }
+
+                ctx.restore();
+            }
+
+            drawPreviewCanvases() {
+                const drawMini = (ctx, canvas, piece) => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    if (!piece) return;
+                    const s = 20;
+                    const m = piece.matrix;
+                    const offsetX = (canvas.width - m[0].length * s) / 2 / s;
+                    const offsetY = (canvas.height - m.length * s) / 2 / s;
+                    for (let y = 0; y < m.length; y++) {
+                        for (let x = 0; x < m[y].length; x++) {
+                            if (m[y][x]) {
+                                this.drawCell(ctx, offsetX + x, offsetY + y, s, piece.color, piece.cellMods[y][x]);
+                            }
+                        }
+                    }
+                };
+
+                drawMini(this.nextCtx, this.nextCanvas, this.nextPiece);
+                drawMini(this.nextCtxMobile, this.nextCanvasMobile, this.nextPiece);
+                drawMini(this.holdCtx, this.holdCanvas, this.holdPieceData);
+
+                if (this.nextPiece) {
+                    document.getElementById('nextBlockSpecialTag').textContent = this.nextPiece.specialLabel;
+                    document.getElementById('nextBlockSpecialTagMobile').textContent = this.nextPiece.specialLabel;
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.strokeStyle = 'rgba(30, 41, 59, 0.45)';
+                this.ctx.lineWidth = 1;
+                for (let x = 0; x <= this.cols; x++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x * this.blockSize, 0);
+                    this.ctx.lineTo(x * this.blockSize, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                for (let y = 0; y <= this.rows; y++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y * this.blockSize);
+                    this.ctx.lineTo(this.canvas.width, y * this.blockSize);
+                    this.ctx.stroke();
+                }
+
+                for (let y = 0; y < this.rows; y++) {
+                    for (let x = 0; x < this.cols; x++) {
+                        const cell = this.grid[y][x];
+                        if (cell) {
+                            this.drawCell(this.ctx, x, y, this.blockSize, cell.color, cell.mod);
+                        }
+                    }
+                }
+
+                if (this.currentPiece && (this.state === 'PLAYING' || this.state === 'PAUSED')) {
+                    let ghostY = this.currentPiece.y;
+                    while (!this.collide(this.grid, this.currentPiece, 0, ghostY - this.currentPiece.y + 1)) {
+                        ghostY++;
+                    }
+
+                    const m = this.currentPiece.matrix;
+                    for (let y = 0; y < m.length; y++) {
+                        for (let x = 0; x < m[y].length; x++) {
+                            if (m[y][x]) {
+                                this.drawCell(
+                                    this.ctx,
+                                    this.currentPiece.x + x,
+                                    ghostY + y,
+                                    this.blockSize,
+                                    this.currentPiece.color,
+                                    'NORMAL',
+                                    0.22
+                                );
+                            }
+                        }
+                    }
+
+                    for (let y = 0; y < m.length; y++) {
+                        for (let x = 0; x < m[y].length; x++) {
+                            if (m[y][x]) {
+                                this.drawCell(
+                                    this.ctx,
+                                    this.currentPiece.x + x,
+                                    this.currentPiece.y + y,
+                                    this.blockSize,
+                                    this.currentPiece.color,
+                                    this.currentPiece.cellMods[y][x],
+                                    1.0
+                                );
+                            }
+                        }
+                    }
+                }
+
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const pt = this.particles[i];
+                    pt.x += pt.vx;
+                    pt.y += pt.vy;
+                    pt.vy += 0.18;
+                    pt.alpha -= 0.028;
+
+                    if (pt.alpha <= 0) {
+                        this.particles.splice(i, 1);
+                    } else {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = pt.alpha;
+                        this.ctx.fillStyle = pt.color;
+                        this.ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+                        this.ctx.restore();
+                    }
+                }
+            }
+
+            /**
+             * GŁÓWNA PĘTLA GRY
+             */
+            loop(time = 0) {
+                const dt = Math.min(100, time - this.lastTime);
+                this.lastTime = time;
+
+                if (this.state === 'PLAYING') {
+                    let uiNeedsRefresh = false;
+
+                    // Pasywna regeneracja Many z reliktu
+                    if (this.mods.manaRegenPerSec > 0 && this.mana < this.maxMana) {
+                        this.manaRegenBuffer += (this.mods.manaRegenPerSec * dt) / 1000;
+                        if (this.manaRegenBuffer >= 1) {
+                            const gain = Math.floor(this.manaRegenBuffer);
+                            this.manaRegenBuffer -= gain;
+                            this.mana = Math.min(this.maxMana, this.mana + gain);
+                            uiNeedsRefresh = true;
+                        }
+                    }
+
+                    // Odliczanie czasu odnowienia odblokowanych umiejętności
+                    this.unlockedSkills.forEach(slotObj => {
+                        if (slotObj.cooldown > 0) {
+                            const prev = Math.ceil(slotObj.cooldown / 100);
+                            slotObj.cooldown = Math.max(0, slotObj.cooldown - dt);
+                            if (Math.ceil(slotObj.cooldown / 100) !== prev) {
+                                uiNeedsRefresh = true;
+                            }
+                        }
+                    });
+
+                    // Timery efektów
+                    const tickTimer = (prop, onExpire = null) => {
+                        if (this[prop] > 0) {
+                            const prev = Math.floor(this[prop] / 200);
+                            this[prop] = Math.max(0, this[prop] - dt);
+                            if (this[prop] <= 0 && onExpire) onExpire();
+                            if (Math.floor(this[prop] / 200) !== prev || this[prop] <= 0) {
+                                this.updateStatusBadges();
+                                uiNeedsRefresh = true;
+                            }
+                        }
+                    };
+
+                    tickTimer('slowTimer');
+                    tickTimer('fogTimer', () => document.getElementById('fogOverlay').classList.add('hidden'));
+                    tickTimer('holdLockTimer', () => document.getElementById('holdLockBadge').classList.add('hidden'));
+                    tickTimer('reverseControlsTimer');
+                    tickTimer('rotationLockTimer');
+
+                    if (uiNeedsRefresh) {
+                        this.updateUI();
+                    }
+
+                    // Obsługa ataków Bossa
+                    if (this.isBossStage && this.bossType) {
+                        let bossDt = dt * this.mods.bossSlowMult;
+                        if (this.slowTimer > 0) bossDt *= 0.45;
+                        this.bossAttackTimer -= bossDt;
+                        const pct = Math.max(0, (this.bossAttackTimer / this.bossAttackInterval) * 100);
+                        document.getElementById('bossAttackBar').style.width = `${pct}%`;
+                        document.getElementById('bossTimerText').textContent = `${Math.max(0, this.bossAttackTimer / 1000).toFixed(1)}s`;
+
+                        if (this.bossAttackTimer <= 0) {
+                            this.bossAttackTimer = this.bossAttackInterval;
+                            this.triggerBossAttack();
+                        }
+                    }
+
+                    // Prędkość opadania klocka i Lock Delay
+                    let effectiveInterval = this.baseDropInterval;
+                    if (this.slowTimer > 0) effectiveInterval *= 2.3;
+                    else if (this.fogTimer > 0) effectiveInterval *= 0.68;
+
+                    if (this.currentPiece) {
+                        const touchingGround = this.collide(this.grid, this.currentPiece, 0, 1);
+                        if (touchingGround) {
+                            this.lockDelayCounter += dt;
+                            if (this.lockDelayCounter >= this.lockDelayMax) {
+                                this.lockPiece();
+                            }
+                        } else {
+                            this.lockDelayCounter = 0;
+                            this.dropCounter += dt;
+                            if (this.dropCounter > effectiveInterval) {
+                                this.currentPiece.y++;
+                                this.dropCounter = 0;
+                            }
+                        }
+                    }
+                }
+
+                this.draw();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            bindEvents() {
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'KeyP' || e.code === 'Escape') {
+                        const helpModal = document.getElementById('helpModal');
+                        if (!helpModal.classList.contains('hidden')) {
+                            helpModal.classList.add('hidden');
+                            return;
+                        }
+                        if (this.state === 'PLAYING' || this.state === 'PAUSED') {
+                            e.preventDefault();
+                            this.togglePause();
+                            return;
+                        }
+                    }
+
+                    if (this.state !== 'PLAYING') return;
+
+                    switch (e.code) {
+                        case 'ArrowLeft':
+                        case 'KeyA':
+                            e.preventDefault();
+                            this.moveLeft(true);
+                            break;
+                        case 'ArrowRight':
+                        case 'KeyD':
+                            e.preventDefault();
+                            this.moveRight(true);
+                            break;
+                        case 'ArrowDown':
+                        case 'KeyS':
+                            e.preventDefault();
+                            this.softDrop();
+                            break;
+                        case 'ArrowUp':
+                        case 'KeyW':
+                            e.preventDefault();
+                            this.rotatePiece();
+                            break;
+                        case 'Space':
+                            e.preventDefault();
+                            this.hardDrop();
+                            break;
+                        case 'KeyC':
+                        case 'ShiftLeft':
+                        case 'ShiftRight':
+                            e.preventDefault();
+                            this.holdPiece();
+                            break;
+                        case 'Digit1':
+                            this.useSkill(1);
+                            break;
+                        case 'Digit2':
+                            this.useSkill(2);
+                            break;
+                        case 'Digit3':
+                            this.useSkill(3);
+                            break;
+                        case 'Digit4':
+                            this.useSkill(4);
+                            break;
+                    }
+                });
+
+                document.getElementById('soundToggleBtnDesktop').addEventListener('click', () => sfx.toggle());
+                document.getElementById('soundToggleBtn').addEventListener('click', () => sfx.toggle());
+                document.getElementById('helpBtn').addEventListener('click', () => {
+                    document.getElementById('helpModal').classList.remove('hidden');
+                });
+            }
+        }
+
+        let game;
+        window.onload = () => {
+            game = new RogueTetrisGame();
+        };
+    </script>
+</body>
+</html>
